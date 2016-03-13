@@ -4,12 +4,15 @@
   <parent>
     <groupId>io.takari</groupId>
     <artifactId>takari</artifactId>
-    <version>17</version>
+    <version>19</version>
   </parent>
   <artifactId>directory-watcher</artifactId>
   <version>0.0.6-SNAPSHOT</version>
   <packaging>takari-jar</packaging>
   <name>Directory watcher with a native OSX implementation of the WatchService</name>
+  <properties>
+    <javaSourceVersion>1.8</javaSourceVersion>
+  </properties>
   <developers>
     <developer>
       <name>Steve Mc Leod</name>
