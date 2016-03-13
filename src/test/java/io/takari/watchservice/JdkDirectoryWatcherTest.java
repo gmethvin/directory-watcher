@@ -99,12 +99,16 @@ public class JdkDirectoryWatcherTest {
     // the order of the played actions to match the order of the events emitted.
     //      
     List<WatchEvent.Kind<Path>> one = events.get("one.txt");
+    assertEquals(2, one.size());
     assertEquals(one.get(0), actions.get(0).kind);
+    assertEquals(one.get(1), actions.get(5).kind);
 
     List<WatchEvent.Kind<Path>> two = events.get("two.txt");
+    assertEquals(1, two.size());
     assertEquals(two.get(0), actions.get(1).kind);
 
     List<WatchEvent.Kind<Path>> three = events.get("three.txt");
+    assertEquals(3, three.size());
     assertEquals(three.get(0), actions.get(2).kind);
     assertEquals(three.get(1), actions.get(3).kind);
     assertEquals(three.get(2), actions.get(4).kind);
@@ -117,6 +121,7 @@ public class JdkDirectoryWatcherTest {
         try {
           watcher.watch();
         } catch (Exception e) {
+        	e.printStackTrace();
         }
       }
     };

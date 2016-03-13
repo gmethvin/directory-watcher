@@ -87,7 +87,9 @@ class DirectoryWatcherJdk {
         } else if (kind == ENTRY_MODIFY) {
           HashCode existingHash = pathHashes.get(child);
           HashCode newHash = hash(child);
-          if (existingHash != null && !existingHash.equals(newHash)) {
+          // newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession
+          // in this case the MODIFY event can be safely ignored
+          if (existingHash != null && newHash != null && !existingHash.equals(newHash)) {
             pathHashes.put(child, newHash);
             listener.onModify(child);
           }

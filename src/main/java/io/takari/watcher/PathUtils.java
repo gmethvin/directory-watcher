@@ -21,7 +21,9 @@ public class PathUtils {
 
   public static HashCode hash(Path file) {
     try {
-      if (!file.toFile().isDirectory()) {
+      File f = file.toFile();
+      if (!f.isDirectory()) {
+        if(!f.exists()) return null;
         return Files.hash(file.toFile(), HASH_FUNCTION);
       } else {
         return HASH_FUNCTION.newHasher().putString(file.toString(), Charsets.UTF_8).hash();
