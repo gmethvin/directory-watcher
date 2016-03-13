@@ -23,7 +23,7 @@ import java.util.Map;
 
 import com.google.common.hash.HashCode;
 
-public class DirectoryWatcherJdk {
+class DirectoryWatcherJdk {
 
   private final WatchService watcher;
   private final DirectoryChangeListener listener;
