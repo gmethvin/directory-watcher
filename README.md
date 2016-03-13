@@ -20,7 +20,10 @@ public class MyDirectoryWatcher {
   }
 
   public void watch() throws Exception {
-    DirectoryWatcher watcher = DirectoryWatcher.builder().directory(pathToWatch).listener(new DirectoryChangeListener() {
+    DirectoryWatcher watcher = DirectoryWatcher.builder()
+      .directory(pathToWatch)
+      .listener(new DirectoryChangeListener() {
+      
       @Override
       public void onCreate(Path path) throws IOException {
         // process create
