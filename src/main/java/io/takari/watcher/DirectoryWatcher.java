@@ -38,7 +38,7 @@ public class DirectoryWatcher {
     }
   }
 
-  public void processEvents() throws IOException {
+  public void watch() throws IOException {
     if (isMac) {
       processEventsMac();
     } else {
