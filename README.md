@@ -1,4 +1,4 @@
-# DirectoryWatcher
+# Directory Watcher
 
 A recursive directory watcher with a native OSX implementation of the WatchService.
 
@@ -11,17 +11,17 @@ import java.nio.file.Path;
 import io.takari.watcher.DirectoryChangeListener;
 import io.takari.watcher.DirectoryWatcher;
 
-public class MyDirectoryWatcher {
+public class DirectoryWatchingUtility {
 
   private final Path pathToWatch;
 
-  public MyDirectoryWatcher(Path pathToWatch) {
-    this.pathToWatch = pathToWatch;
+  public DirectoryWatchingUtility(Path directoryToWatch) {
+    this.directoryToWatch = directoryToWatch;
   }
 
   public void watch() throws Exception {
     DirectoryWatcher watcher = DirectoryWatcher.builder()
-      .directory(pathToWatch)
+      .directory(directoryToWatch)
       .listener(new DirectoryChangeListener() {
       
       @Override
@@ -39,7 +39,7 @@ public class MyDirectoryWatcher {
         // process delete
       }
     }).build();
-    watcher.processEvents();
+    watcher.watch();
   }
 }
 ```

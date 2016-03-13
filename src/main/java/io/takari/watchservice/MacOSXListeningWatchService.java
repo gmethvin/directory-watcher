@@ -75,6 +75,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
   public static class CFRunLoopThread extends Thread {
     private final FSEventStreamRef streamRef;
     private CFRunLoopRef runLoop;
+
     public CFRunLoopThread(FSEventStreamRef streamRef, File file) {
       super("WatchService for " + file);
       this.streamRef = streamRef;

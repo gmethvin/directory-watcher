@@ -61,9 +61,9 @@ class AbstractWatchKey implements WatchKey {
   private final BlockingQueue<WatchEvent<?>> events = new ArrayBlockingQueue<>(MAX_QUEUE_SIZE);
 
   public AbstractWatchKey(
-      AbstractWatchService watcher,
-      @Nullable Watchable watchable,
-      Iterable<? extends WatchEvent.Kind<?>> subscribedTypes) {
+    AbstractWatchService watcher,
+    @Nullable Watchable watchable,
+    Iterable<? extends WatchEvent.Kind<?>> subscribedTypes) {
     this.watcher = checkNotNull(watcher);
     this.watchable = watchable; // nullable for Watcher poison
     this.subscribedTypes = ImmutableSet.copyOf(subscribedTypes);
@@ -103,7 +103,7 @@ class AbstractWatchKey implements WatchKey {
       watcher.enqueue(this);
     }
   }
-  
+
   @Override
   public boolean isValid() {
     return watcher.isOpen() && valid.get();
@@ -149,10 +149,9 @@ class AbstractWatchKey implements WatchKey {
   }
 
   enum State {
-    READY,
-    SIGNALLED
+    READY, SIGNALLED
   }
-  
+
   // WatchEvent not WatchEvent.Kind
   final void signalEvent(WatchEvent.Kind<Path> kind, Path context) {
     events.add(new Event<>(kind, 1, context));

@@ -115,7 +115,7 @@ public class JdkDirectoryWatcherTest {
       @Override
       public void run() {
         try {
-          watcher.processEvents();
+          watcher.watch();
         } catch (Exception e) {
         }
       }
