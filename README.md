@@ -2,7 +2,7 @@
 
 A recursive directory watcher with a native OSX implementation of the WatchService.
 
-```
+``` java
 package io.takari.watchservice;
 
 import java.io.IOException;
