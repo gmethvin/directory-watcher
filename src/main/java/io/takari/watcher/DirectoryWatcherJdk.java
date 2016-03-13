@@ -56,7 +56,7 @@ public class DirectoryWatcherJdk {
 
   public void processEventsJdk() throws IOException {
     for (;;) {
-      if(listener.stopWatching()) {
+      if (listener.stopWatching()) {
         return;
       }
       // wait for key to be signalled
@@ -81,7 +81,7 @@ public class DirectoryWatcherJdk {
           if (Files.isDirectory(child, NOFOLLOW_LINKS)) {
             registerAll(child);
           } else {
-            pathHashes.put(child, hash(child));            
+            pathHashes.put(child, hash(child));
             listener.onCreate(child);
           }
         } else if (kind == ENTRY_MODIFY) {

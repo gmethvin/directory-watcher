@@ -49,10 +49,10 @@ public class PathUtils {
       }
     }
     return files;
-  }  
-  
+  }
+
   @SuppressWarnings("unchecked")
   public static <T> WatchEvent<T> cast(WatchEvent<?> event) {
     return (WatchEvent<T>) event;
-  }  
+  }
 }

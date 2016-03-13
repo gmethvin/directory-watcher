@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.takari.watchservice;                                                                                            
+package io.takari.watchservice;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -57,7 +57,7 @@ abstract class AbstractWatchService implements WatchService {
    * it to do other things as well.
    */
   public AbstractWatchKey register(WatchablePath watchable, Iterable<? extends WatchEvent.Kind<?>> eventTypes)
-      throws IOException {
+    throws IOException {
     checkOpen();
     return new AbstractWatchKey(this, watchable, eventTypes);
   }
@@ -145,7 +145,8 @@ abstract class AbstractWatchService implements WatchService {
     private final Kind<T> kind;
     private final int count;
 
-    @Nullable private final T context;
+    @Nullable
+    private final T context;
 
     public Event(Kind<T> kind, int count, @Nullable T context) {
       this.kind = checkNotNull(kind);
@@ -175,8 +176,8 @@ abstract class AbstractWatchService implements WatchService {
       if (obj instanceof Event) {
         Event<?> other = (Event<?>) obj;
         return kind().equals(other.kind())
-            && count() == other.count()
-            && Objects.equals(context(), other.context());
+          && count() == other.count()
+          && Objects.equals(context(), other.context());
       }
       return false;
     }
@@ -189,10 +190,10 @@ abstract class AbstractWatchService implements WatchService {
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this)
-          .add("kind", kind())
-          .add("count", count())
-          .add("context", context())
-          .toString();
+        .add("kind", kind())
+        .add("count", count())
+        .add("context", context())
+        .toString();
     }
   }
 }
