@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -33,6 +34,10 @@ public class PathUtils {
     return null;
   }
 
+  public static Map<WatchKey, Path> createKeyRootsMap() {
+    return new ConcurrentHashMap<WatchKey, Path>();
+  }
+  
   public static Map<Path, HashCode> createHashCodeMap(Path file) {
     Map<Path, HashCode> lastModifiedMap = new ConcurrentHashMap<Path, HashCode>();
     for (Path child : recursiveListFiles(file)) {

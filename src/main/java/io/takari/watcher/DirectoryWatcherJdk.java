@@ -2,6 +2,7 @@ package io.takari.watcher;
 
 import static io.takari.watcher.PathUtils.cast;
 import static io.takari.watcher.PathUtils.createHashCodeMap;
+import static io.takari.watcher.PathUtils.createKeyRootsMap;
 import static io.takari.watcher.PathUtils.hash;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
@@ -29,17 +30,19 @@ class DirectoryWatcherJdk {
   private final DirectoryChangeListener listener;
   private final Path directory;
   private final Map<Path, HashCode> pathHashes;
+  private final Map<WatchKey, Path> keyRoots;
 
   public DirectoryWatcherJdk(Path directory, DirectoryChangeListener listener) throws IOException {
     this.directory = directory;
     this.watcher = FileSystems.getDefault().newWatchService();
     this.listener = listener;
     this.pathHashes = createHashCodeMap(directory);
+    this.keyRoots = createKeyRootsMap();
     registerAll(directory);
   }
 
-  private void register(Path dir) throws IOException {
-    dir.register(watcher, new WatchEvent.Kind[] {ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY});
+  private void register(Path directory) throws IOException {
+    keyRoots.put(directory.register(watcher, new WatchEvent.Kind[] {ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY}), directory);
   }
 
   private void registerAll(final Path start) throws IOException {
@@ -65,7 +68,7 @@ class DirectoryWatcherJdk {
         key = watcher.take();
       } catch (InterruptedException x) {
         return;
-      }
+      }      
       for (WatchEvent<?> event : key.pollEvents()) {
         WatchEvent.Kind<?> kind = event.kind();
         if (kind == OVERFLOW) {
@@ -74,13 +77,12 @@ class DirectoryWatcherJdk {
         // Context for directory entry event is the file name of entry
         WatchEvent<Path> ev = cast(event);
         Path name = ev.context();
-        Path child = directory.resolve(name);
-        // if directory is created, and watching recursively, then
-        // register it and its sub-directories
+        Path child = keyRoots.containsKey(key) ?  keyRoots.get(key).resolve(name) : directory.resolve(name);
+        // if directory is created, and watching recursively, then register it and its sub-directories
         if (kind == ENTRY_CREATE) {
           if (Files.isDirectory(child, NOFOLLOW_LINKS)) {
             registerAll(child);
-          } else {
+          } else {            
             pathHashes.put(child, hash(child));
             listener.onCreate(child);
           }

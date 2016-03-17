@@ -59,18 +59,27 @@ public class JdkDirectoryWatcherTest {
     // appears to not see them because the create/delete pair happen so fast it's like the file
     // is never there at all.
     int waitInMs = 500;
-    FileSystem fileSystem = new FileSystem(directory, waitInMs) //
-      .create("one.txt") //
-      .wait(waitInMs) //
-      .create("two.txt") //
-      .wait(waitInMs) //
-      .create("three.txt") //
-      .wait(waitInMs) //
-      .update("three.txt", " 111111") //
-      .wait(waitInMs) //
-      .update("three.txt", " 222222") //
-      .wait(waitInMs) //
-      .delete("one.txt");
+    FileSystem fileSystem = new FileSystem(directory)
+      .create("one.txt")
+      .wait(waitInMs)
+      .create("two.txt")
+      .wait(waitInMs)
+      .create("three.txt")
+      .wait(waitInMs)
+      .update("three.txt", " 111111")
+      .wait(waitInMs)
+      .update("three.txt", " 222222")
+      .wait(waitInMs)
+      .delete("one.txt")
+      .wait(waitInMs)
+      .directory("testDir")
+      .wait(waitInMs)
+      .create("testDir/file1InDir.txt")
+      .wait(waitInMs)
+      .create("testDir/file2InDir.txt", " 111111")
+      .wait(waitInMs)
+      .update("testDir/file2InDir.txt", " 222222")
+      .wait(waitInMs);
     // Collect our filesystem actions 
     List<FileSystemAction> actions = fileSystem.actions();
 
@@ -112,6 +121,16 @@ public class JdkDirectoryWatcherTest {
     assertEquals(three.get(0), actions.get(2).kind);
     assertEquals(three.get(1), actions.get(3).kind);
     assertEquals(three.get(2), actions.get(4).kind);
+
+    List<WatchEvent.Kind<Path>> four = events.get("testDir/file1InDir.txt");
+    assertEquals(1, four.size());
+    assertEquals(three.get(0), actions.get(6).kind);
+
+    List<WatchEvent.Kind<Path>> five = events.get("testDir/file2InDir.txt");
+    assertEquals(2, five.size());
+    assertEquals(three.get(0), actions.get(7).kind);
+    assertEquals(three.get(1), actions.get(8).kind);
+
   }
 
   private static Runnable watcher(final DirectoryWatcher watcher, final List<FileSystemAction> actions) {
@@ -121,7 +140,7 @@ public class JdkDirectoryWatcherTest {
         try {
           watcher.watch();
         } catch (Exception e) {
-        	e.printStackTrace();
+          e.printStackTrace();
         }
       }
     };
