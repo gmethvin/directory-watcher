@@ -17,8 +17,6 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.hash.HashCode;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 
@@ -127,7 +125,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
         final Set<Path> filesOnDisk = recursiveListFiles(new File(folderName).toPath());
         //
         // We collect and process all actions for each category of created, modified and deleted as it appears a first thread
-        // can start while a second thread can get through faster. If we do the collection for each category a second
+        // can start while a second thread can get through faster. If we do the collection for each category in a second
         // thread can get to the processing of modifications before the first thread is finished processing creates.
         // In this case the modification will not be reported correctly. 
         //
