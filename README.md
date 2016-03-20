@@ -50,4 +50,8 @@ The implementations of the OSX and JDK version of the `WatchService`, and the re
 
 # Other Known Implementations
 
-https://github.com/longkerdandy/jpathwatch-osgi
+- https://github.com/longkerdandy/jpathwatch-osgi
+- https://github.com/levelsbeyond/jpoller
+- https://github.com/aerofs/jnotify
+- https://github.com/java-native-access/jna/blob/master/contrib/platform/src/com/sun/jna/platform/win32/W32FileMonitor.java
+- Eclipse must have one
