@@ -44,7 +44,7 @@ public class FileSystem {
     actions.add(new FileSystemAction(FileSystemAction.Type.MKDIR, Paths.get(directoryToOperateOn.toString(), dir)));
     return this;
   }
-  
+
   public FileSystem update(String path, String content) {
     return update(new File(path), content);
   }
@@ -64,23 +64,23 @@ public class FileSystem {
     actions.add(new FileSystemAction(ENTRY_DELETE, truePath));
     return this;
   }
-  
+
   public FileSystem wait(int millis) {
     actions.add(new FileSystemAction(millis));
     return this;
   }
-  
+
   public List<FileSystemAction> actions() {
     List<FileSystemAction> realActions = Lists.newArrayList();
-    for(FileSystemAction a : actions) {
-      if(a.myType == FileSystemAction.Type.COUNTABLE) {
+    for (FileSystemAction a : actions) {
+      if (a.myType == FileSystemAction.Type.COUNTABLE) {
         System.out.println(String.format("adding action:%s:path:%s:myType:%s:", a.kind, (a.path != null) ? a.path : "", a.myType.name()));
         realActions.add(a);
       }
-    }    
+    }
     return realActions;
   }
-  
+
   public void playActions() throws Exception {
     for (FileSystemAction action : actions) {
       if (action.kind == ENTRY_CREATE) {
@@ -90,23 +90,23 @@ public class FileSystem {
         action.path.toFile().setLastModified(new Date().getTime());
       } else if (action.kind == ENTRY_DELETE) {
         action.path.toFile().delete();
-      } else {        
-        switch (action.myType) {          
+      } else {
+        switch (action.myType) {
           case WAIT:
             try {
               Thread.sleep(action.millis);
             } catch (InterruptedException e) {
-            }                      
-            break;            
-          case MKDIR:           
+            }
+            break;
+          case MKDIR:
             if (!action.path.toFile().exists()) {
               action.path.toFile().mkdirs();
-            }            
-            break;            
+            }
+            break;
           case COUNTABLE:
           case NOOP:
-            break;          
-        }          
+            break;
+        }
       }
     }
   }
@@ -121,15 +121,15 @@ public class FileSystem {
     final String content;
     final int millis;
     final Type myType;
-    
+
     FileSystemAction(int millis) {
       this.millis = millis;
       this.kind = null;
       this.path = null;
-      this.content = null;   
+      this.content = null;
       this.myType = Type.WAIT;
     }
-    
+
     FileSystemAction(Type stub, Path path) {
       this.millis = 0;
       this.kind = null;

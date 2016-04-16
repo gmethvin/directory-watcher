@@ -130,6 +130,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       this.hashCodeMap = hashCodeMap;
     }
 
+    @Override
     public void invoke(FSEventStreamRef streamRef, Pointer clientCallBackInfo, NativeLong numEvents, Pointer eventPaths, Pointer /* array of unsigned int */ eventFlags,
       /* array of unsigned long */ Pointer eventIds) {
       final int length = numEvents.intValue();

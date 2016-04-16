@@ -42,10 +42,12 @@ public class WatchablePath implements Watchable {
     WatchEvent.Kind<?>[] events,
     WatchEvent.Modifier... modifiers)
       throws IOException {
-    if (watcher == null)
+    if (watcher == null) {
       throw new NullPointerException();
-    if (!(watcher instanceof AbstractWatchService))
+    }
+    if (!(watcher instanceof AbstractWatchService)) {
       throw new ProviderMismatchException();
+    }
     return ((AbstractWatchService) watcher).register(this, Arrays.asList(events));
   }
 

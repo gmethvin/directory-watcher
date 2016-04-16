@@ -81,7 +81,7 @@ class DirectoryWatcherJdk {
         key = watcher.take();
       } catch (InterruptedException x) {
         return;
-      }      
+      }
       for (WatchEvent<?> event : key.pollEvents()) {
         WatchEvent.Kind<?> kind = event.kind();
         if (kind == OVERFLOW) {
@@ -90,12 +90,12 @@ class DirectoryWatcherJdk {
         // Context for directory entry event is the file name of entry
         WatchEvent<Path> ev = cast(event);
         Path name = ev.context();
-        Path child = keyRoots.containsKey(key) ?  keyRoots.get(key).resolve(name) : directory.resolve(name);
+        Path child = keyRoots.containsKey(key) ? keyRoots.get(key).resolve(name) : directory.resolve(name);
         // if directory is created, and watching recursively, then register it and its sub-directories
         if (kind == ENTRY_CREATE) {
           if (Files.isDirectory(child, NOFOLLOW_LINKS)) {
             registerAll(child);
-          } else {            
+          } else {
             pathHashes.put(child, hash(child));
             listener.onCreate(child);
           }

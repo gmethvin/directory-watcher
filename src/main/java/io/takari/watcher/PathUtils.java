@@ -37,7 +37,9 @@ public class PathUtils {
     try {
       File f = file.toFile();
       if (!f.isDirectory()) {
-        if(!f.exists()) return null;
+        if (!f.exists()) {
+          return null;
+        }
         return Files.hash(file.toFile(), HASH_FUNCTION);
       } else {
         return HASH_FUNCTION.newHasher().putString(file.toString(), Charsets.UTF_8).hash();
@@ -50,7 +52,7 @@ public class PathUtils {
   public static Map<WatchKey, Path> createKeyRootsMap() {
     return new ConcurrentHashMap<WatchKey, Path>();
   }
-  
+
   public static Map<Path, HashCode> createHashCodeMap(Path file) {
     Map<Path, HashCode> lastModifiedMap = new ConcurrentHashMap<Path, HashCode>();
     for (Path child : recursiveListFiles(file)) {
