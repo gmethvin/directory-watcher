@@ -4,14 +4,15 @@
   <parent>
     <groupId>io.takari</groupId>
     <artifactId>takari</artifactId>
-    <version>19</version>
+    <version>22</version>
   </parent>
   <artifactId>directory-watcher</artifactId>
   <version>0.0.6-SNAPSHOT</version>
   <packaging>takari-jar</packaging>
   <name>Directory watcher with a native OSX implementation of the WatchService</name>
   <properties>
-    <javaSourceVersion>1.8</javaSourceVersion>
+    <takari.javaSourceVersion>1.8</takari.javaSourceVersion>
+    <takari.licenseHeader>LICENSE-HEADER.txt</takari.licenseHeader>
   </properties>
   <developers>
     <developer>
