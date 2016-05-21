@@ -26,7 +26,7 @@
   <packaging>takari-jar</packaging>
   <name>Directory watcher with a native OSX implementation of the WatchService</name>
   <properties>
-    <takari.javaSourceVersion>1.8</takari.javaSourceVersion>
+    <takari.javaSourceVersion>1.7</takari.javaSourceVersion>
     <takari.licenseHeader>LICENSE-HEADER.txt</takari.licenseHeader>
   </properties>
   <developers>

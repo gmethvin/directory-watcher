@@ -114,6 +114,7 @@ public class DirectoryWatcher {
   }
 
   public void close() throws IOException {
+    
     watchService.close();
   }
 

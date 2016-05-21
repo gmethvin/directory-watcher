@@ -24,7 +24,6 @@ public interface DirectoryChangeListener {
 
   void onDelete(Path path) throws IOException;
 
-  default boolean stopWatching() {
-    return false;
-  }
+  boolean stopWatching();
+
 }
