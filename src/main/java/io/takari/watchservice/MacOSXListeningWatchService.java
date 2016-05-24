@@ -174,7 +174,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       for (Path file : filesOnDisk) {
         HashCode storedHashCode = hashCodeMap.get(file);
         HashCode newHashCode = hash(file);
-        if (storedHashCode != null && !storedHashCode.equals(newHashCode)) {
+        if (storedHashCode != null && !storedHashCode.equals(newHashCode) && newHashCode != null) {
           modifiedFileList.add(file);
           hashCodeMap.put(file, newHashCode);
         }
@@ -187,8 +187,10 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       for (Path file : filesOnDisk) {
         if (!hashCodeMap.containsKey(file)) {
           HashCode hashCode = hash(file);
-          createdFileList.add(file);
-          hashCodeMap.put(file, hashCode);
+          if (hashCode != null) {
+            createdFileList.add(file);
+            hashCodeMap.put(file, hashCode);            
+          }
         }
       }
       return createdFileList;

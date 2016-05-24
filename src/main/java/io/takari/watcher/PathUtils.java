@@ -57,7 +57,11 @@ public class PathUtils {
     Map<Path, HashCode> lastModifiedMap = new ConcurrentHashMap<Path, HashCode>();
     for (Path child : recursiveListFiles(file)) {
       HashCode hash = hash(child);
-      lastModifiedMap.put(child, hash);
+      
+      if (hash != null) {
+        lastModifiedMap.put(child, hash);        
+      }
+      
     }
     return lastModifiedMap;
   }

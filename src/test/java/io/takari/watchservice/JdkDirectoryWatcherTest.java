@@ -4,11 +4,15 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchService;
 import java.nio.file.Watchable;
@@ -20,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.codehaus.plexus.util.FileUtils;
 import org.junit.Assume;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.ArrayListMultimap;
@@ -33,11 +38,39 @@ public class JdkDirectoryWatcherTest {
 
   @Test
   public void validateOsxDirectoryWatcher() throws Exception {
+    
     Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
     File directory = new File(new File("").getAbsolutePath(), "target/directory");
     FileUtils.deleteDirectory(directory);
     directory.mkdirs();
     runWatcher(directory.toPath(), new WatchablePath(directory.toPath()), new MacOSXListeningWatchService(), true);
+  }
+  
+  @Test
+  public void validateOsxDirectoryWatcherPreExistingSubdir() throws Exception {
+    
+    Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
+    File directory = new File(new File("").getAbsolutePath(), "target/directory");
+    FileUtils.deleteDirectory(directory);
+    directory.mkdirs();
+    
+    //make a dir before the watch is started
+    File zupDir = Paths.get(directory.toString(), "zup").toFile();
+    zupDir.mkdir();
+    
+    assertTrue(zupDir.exists());
+    
+    //prep a new file for the watched directory
+    File fileInZupDir = new File(zupDir, "fileInZupDir.txt");
+    assertFalse(fileInZupDir.exists());
+    
+    //write it to the zup subdirectory of the watched directory
+    Files.write(fileInZupDir.toPath(), "some data".getBytes());
+    assertTrue(fileInZupDir.exists());
+    
+    //files are written and done, now start the watcher
+    runWatcher(directory.toPath(), new WatchablePath(directory.toPath()), new MacOSXListeningWatchService(), true);
+    
   }
 
   @Test
