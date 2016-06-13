@@ -22,7 +22,7 @@
     <version>22</version>
   </parent>
   <artifactId>directory-watcher</artifactId>
-  <version>0.0.8-SNAPSHOT</version>
+  <version>0.0.8</version>
   <packaging>takari-jar</packaging>
   <name>Directory watcher with a native OSX implementation of the WatchService</name>
   <properties>
@@ -81,4 +81,8 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <scm>
+    <tag>directory-watcher-0.0.8</tag>
+  </scm>
 </project>
