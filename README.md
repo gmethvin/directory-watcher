@@ -2,6 +2,32 @@
 
 A recursive directory watcher utility for JDK 8+, along with a native OS X implementation of the WatchService.
 
+## Getting started
+
+First add the dependency for your preferred build system.
+
+### SBT
+
+```scala
+libraryDependencies += "io.methvin" % "directory-watcher" % "0.0.1"
+```
+
+### Maven
+
+```xml
+<dependency>
+    <groupId>io.methvin</groupId>
+    <artifactId>directory-watcher</artifactId>
+    <version>0.0.1</version>
+</dependency>
+```
+
+### API
+
+Use `DirectoryWatcher.create` to create a new watcher, then use either `watch()` to block the current thread while watching or `watchAsync()` to watch in another thread. This will automatically detect Mac OS X and provide a native implementation based on the Carbon File System Events API.
+
+### Example
+
 ```java
 package com.example;
 
