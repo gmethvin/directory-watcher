@@ -1,8 +1,5 @@
-package io.takari.watchservice;
+package io.methvin.watchservice;
 
-import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -15,62 +12,62 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchService;
-import java.nio.file.Watchable;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.codehaus.plexus.util.FileUtils;
 import org.junit.Assume;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 
-import io.takari.watcher.DirectoryChangeListener;
-import io.takari.watcher.DirectoryWatcher;
-import io.takari.watchservice.FileSystem.FileSystemAction;
+import io.methvin.watcher.DirectoryChangeListener;
+import io.methvin.watcher.DirectoryChangeEvent;
+import io.methvin.watcher.DirectoryWatcher;
+import io.methvin.watchservice.FileSystem.FileSystemAction;
 
-public class JdkDirectoryWatcherTest {
+public class DirectoryWatcherTest {
 
   @Test
   public void validateOsxDirectoryWatcher() throws Exception {
-    
+
     Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
     File directory = new File(new File("").getAbsolutePath(), "target/directory");
     FileUtils.deleteDirectory(directory);
     directory.mkdirs();
-    runWatcher(directory.toPath(), new WatchablePath(directory.toPath()), new MacOSXListeningWatchService(), true);
+    runWatcher(directory.toPath(), new MacOSXListeningWatchService(), true);
   }
-  
+
   @Test
   public void validateOsxDirectoryWatcherPreExistingSubdir() throws Exception {
-    
+
     Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
     File directory = new File(new File("").getAbsolutePath(), "target/directory");
     FileUtils.deleteDirectory(directory);
     directory.mkdirs();
-    
+
     //make a dir before the watch is started
     File zupDir = Paths.get(directory.toString(), "zup").toFile();
     zupDir.mkdir();
-    
+
     assertTrue(zupDir.exists());
-    
+
     //prep a new file for the watched directory
     File fileInZupDir = new File(zupDir, "fileInZupDir.txt");
     assertFalse(fileInZupDir.exists());
-    
+
     //write it to the zup subdirectory of the watched directory
     Files.write(fileInZupDir.toPath(), "some data".getBytes());
     assertTrue(fileInZupDir.exists());
-    
+
     //files are written and done, now start the watcher
-    runWatcher(directory.toPath(), new WatchablePath(directory.toPath()), new MacOSXListeningWatchService(), true);
-    
+    runWatcher(directory.toPath(), new MacOSXListeningWatchService(), true);
+
   }
 
   @Test
@@ -79,10 +76,10 @@ public class JdkDirectoryWatcherTest {
     File directory = new File(new File("").getAbsolutePath(), "target/directory");
     FileUtils.deleteDirectory(directory);
     directory.mkdirs();
-    runWatcher(directory.toPath(), directory.toPath(), FileSystems.getDefault().newWatchService(), false);
+    runWatcher(directory.toPath(), FileSystems.getDefault().newWatchService(), false);
   }
 
-  protected void runWatcher(Path directory, Watchable watchable, WatchService watchService, boolean isMac) throws Exception {
+  protected void runWatcher(Path directory, WatchService watchService, boolean isMac) throws Exception {
     //
     // start our service
     // play our events
@@ -113,15 +110,14 @@ public class JdkDirectoryWatcherTest {
       .wait(waitInMs)
       .update("testDir/file2InDir.txt", " 222222")
       .wait(waitInMs);
-    // Collect our filesystem actions 
+    // Collect our filesystem actions
     List<FileSystemAction> actions = fileSystem.actions();
 
     TestDirectoryChangeListener listener = new TestDirectoryChangeListener(directory, actions);
-    DirectoryWatcher watcher = new DirectoryWatcher(directory, watchable, watchService, listener, isMac);
+    DirectoryWatcher watcher = new DirectoryWatcher(Collections.singletonList(directory), listener, watchService, isMac);
 
-    ExecutorService executor = Executors.newSingleThreadExecutor();
     // Fire up the filesystem watcher
-    Future<?> future = executor.submit(watcher(watcher, actions));
+    CompletableFuture<Void> future = watcher.watchAsync();
     // Play our filesystem events
     fileSystem.playActions();
     // Wait for the future to complete which is when the right number of events are captured
@@ -130,7 +126,7 @@ public class JdkDirectoryWatcherTest {
     // Close the watcher
     watcher.close();
 
-    // Let's see if everything works!    
+    // Let's see if everything works!
     assertEquals(actions.size(), events.size());
     //
     // Now we make a map of the events keyed by the path. The order in which we
@@ -139,7 +135,7 @@ public class JdkDirectoryWatcherTest {
     // two.txt. We just want to make sure that the action for a particular path agrees
     // with the corresponding event for that file. For a given path we definitely want
     // the order of the played actions to match the order of the events emitted.
-    //      
+    //
     List<WatchEvent.Kind<Path>> one = events.get("one.txt");
     assertEquals(2, one.size());
     assertEquals(one.get(0), actions.get(0).kind);
@@ -193,18 +189,8 @@ public class JdkDirectoryWatcherTest {
     }
 
     @Override
-    public void onCreate(Path file) throws IOException {
-      updateActions(file, ENTRY_CREATE);
-    }
-
-    @Override
-    public void onModify(Path file) throws IOException {
-      updateActions(file, ENTRY_MODIFY);
-    }
-
-    @Override
-    public void onDelete(Path path) throws IOException {
-      updateActions(path, ENTRY_DELETE);
+    public void onEvent(DirectoryChangeEvent event) throws IOException {
+      updateActions(event.path(), event.eventType().getWatchEventKind());
     }
 
     void updateActions(Path path, WatchEvent.Kind<Path> kind) {
@@ -217,8 +203,8 @@ public class JdkDirectoryWatcherTest {
     }
 
     @Override
-    public boolean stopWatching() {
-      return actionsProcessed == totalActions;
+    public boolean isWatching() {
+      return actionsProcessed < totalActions;
     }
   }
 }

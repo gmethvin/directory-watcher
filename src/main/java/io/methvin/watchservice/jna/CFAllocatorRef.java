@@ -11,19 +11,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.takari.watcher;
+package io.methvin.watchservice.jna;
 
-import java.io.IOException;
-import java.nio.file.Path;
+import com.sun.jna.ptr.PointerByReference;
 
-public interface DirectoryChangeListener {
-
-  void onCreate(Path file) throws IOException;
-
-  void onModify(Path file) throws IOException;
-
-  void onDelete(Path path) throws IOException;
-
-  boolean stopWatching();
+public class CFAllocatorRef extends PointerByReference {
 
 }

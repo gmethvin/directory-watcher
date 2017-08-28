@@ -11,18 +11,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.takari.watchservice;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
+package io.methvin.watchservice;
 
 import java.nio.file.Path;
 import java.nio.file.WatchEvent;
+import java.nio.file.WatchEvent.Kind;
 import java.nio.file.WatchKey;
 import java.nio.file.Watchable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -31,10 +31,10 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nullable;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableSet;
+import io.methvin.watchservice.AbstractWatchService.Event;
 
-import io.takari.watchservice.AbstractWatchService.Event;
+import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Implementation of {@link WatchKey} for an {@link AbstractWatchService}.
@@ -49,7 +49,7 @@ class AbstractWatchKey implements WatchKey {
 
   private final AbstractWatchService watcher;
   private final Watchable watchable;
-  private final ImmutableSet<WatchEvent.Kind<?>> subscribedTypes;
+  private final Set<Kind<?>> subscribedTypes;
 
   private final AtomicReference<AbstractWatchKey.State> state = new AtomicReference<>(State.READY);
   private final AtomicBoolean valid = new AtomicBoolean(true);
@@ -61,15 +61,17 @@ class AbstractWatchKey implements WatchKey {
     AbstractWatchService watcher,
     @Nullable Watchable watchable,
     Iterable<? extends WatchEvent.Kind<?>> subscribedTypes) {
-    this.watcher = checkNotNull(watcher);
+    this.watcher = requireNonNull(watcher);
     this.watchable = watchable; // nullable for Watcher poison
-    this.subscribedTypes = ImmutableSet.copyOf(subscribedTypes);
+
+    Set<Kind<?>> types = new HashSet<Kind<?>>();
+    subscribedTypes.forEach(types::add);
+    this.subscribedTypes = Collections.unmodifiableSet(types);
   }
 
   /**
    * Gets the current state of this key, State.READY or SIGNALLED.
    */
-  @VisibleForTesting
   AbstractWatchKey.State state() {
     return state.get();
   }

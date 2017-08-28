@@ -1,4 +1,4 @@
-package io.takari.watchservice;
+package io.methvin.watchservice;
 
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
@@ -13,8 +13,6 @@ import java.util.Date;
 import java.util.List;
 
 import org.codehaus.plexus.util.FileUtils;
-
-import com.google.common.collect.Lists;
 
 public class FileSystem {
 
@@ -71,7 +69,7 @@ public class FileSystem {
   }
 
   public List<FileSystemAction> actions() {
-    List<FileSystemAction> realActions = Lists.newArrayList();
+    List<FileSystemAction> realActions = new ArrayList<FileSystemAction>();
     for (FileSystemAction a : actions) {
       if (a.myType == FileSystemAction.Type.COUNTABLE) {
         System.out.println(String.format("adding action:%s:path:%s:myType:%s:", a.kind, (a.path != null) ? a.path : "", a.myType.name()));

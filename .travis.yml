@@ -1,0 +1,13 @@
+sudo: false
+language: scala
+jdk:
+- oraclejdk8
+cache:
+  directories:
+  - "$HOME/.ivy2/cache"
+before_cache:
+- rm -rf $HOME/.ivy2/cache/io.methvin/*
+- rm -rf $HOME/.ivy2/cache/scala_*/sbt_*/io.methvin/*
+- find $HOME/.ivy2/cache -name "ivydata-*.properties" -print0 | xargs -n10 -0 rm
+script:
+- sbt test publishLocal

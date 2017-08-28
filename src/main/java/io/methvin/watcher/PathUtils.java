@@ -11,14 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.takari.watcher;
+package io.methvin.watcher;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,14 +56,18 @@ public class PathUtils {
   }
 
   public static Map<Path, HashCode> createHashCodeMap(Path file) {
+    return createHashCodeMap(Collections.singletonList(file));
+  }
+
+  public static Map<Path, HashCode> createHashCodeMap(List<Path> files) {
     Map<Path, HashCode> lastModifiedMap = new ConcurrentHashMap<Path, HashCode>();
-    for (Path child : recursiveListFiles(file)) {
-      HashCode hash = hash(child);
-      
-      if (hash != null) {
-        lastModifiedMap.put(child, hash);        
+    for (Path file : files) {
+      for (Path child : recursiveListFiles(file)) {
+        HashCode hash = hash(child);
+        if (hash != null) {
+          lastModifiedMap.put(child, hash);
+        }
       }
-      
     }
     return lastModifiedMap;
   }

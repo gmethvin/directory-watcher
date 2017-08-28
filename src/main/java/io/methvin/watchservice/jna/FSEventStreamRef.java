@@ -11,16 +11,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.takari.watchservice.jna;
+package io.methvin.watchservice.jna;
 
-import com.sun.jna.NativeLong;
+import com.sun.jna.ptr.PointerByReference;
 
-public class CFIndex extends NativeLong {
-  private static final long serialVersionUID = 0;
+public class FSEventStreamRef extends PointerByReference {
 
-  public static CFIndex valueOf(int i) {
-    CFIndex idx = new CFIndex();
-    idx.setValue(i);
-    return idx;
-  }
 }

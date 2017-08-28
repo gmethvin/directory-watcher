@@ -11,20 +11,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.takari.watchservice;
-
-import static io.takari.watcher.PathUtils.createHashCodeMap;
-import static io.takari.watcher.PathUtils.hash;
-import static io.takari.watcher.PathUtils.recursiveListFiles;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
+package io.methvin.watchservice;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.WatchEvent;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,13 +26,17 @@ import java.util.Set;
 import com.google.common.hash.HashCode;
 import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
+import io.methvin.watcher.PathUtils;
+import io.methvin.watchservice.jna.CFArrayRef;
+import io.methvin.watchservice.jna.CFStringRef;
+import io.methvin.watchservice.jna.CFIndex;
+import io.methvin.watchservice.jna.CFRunLoopRef;
+import io.methvin.watchservice.jna.CarbonAPI;
+import io.methvin.watchservice.jna.FSEventStreamRef;
 
-import io.takari.watchservice.jna.CFArrayRef;
-import io.takari.watchservice.jna.CFIndex;
-import io.takari.watchservice.jna.CFRunLoopRef;
-import io.takari.watchservice.jna.CFStringRef;
-import io.takari.watchservice.jna.CarbonAPI;
-import io.takari.watchservice.jna.FSEventStreamRef;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 
 
 /**
@@ -53,15 +51,20 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
   @SuppressWarnings({"MismatchedQueryAndUpdateOfCollection"})
   private final List<CarbonAPI.FSEventStreamCallback> callbackList = new ArrayList<CarbonAPI.FSEventStreamCallback>();
   private final List<CFRunLoopThread> threadList = new ArrayList<CFRunLoopThread>();
+  private final Set<Path> pathsWatching = new HashSet<Path>();
 
   @Override
   public AbstractWatchKey register(WatchablePath watchable, Iterable<? extends WatchEvent.Kind<?>> events) throws IOException {
+    final MacOSXWatchKey watchKey = new MacOSXWatchKey(this, events);
     final Path file = watchable.getFile();
-    final Map<Path, HashCode> hashCodeMap = createHashCodeMap(file);
+    // if we are already watching a parent of this directory, do nothing.
+    for (Path watchedPath: pathsWatching) {
+      if (file.startsWith(watchedPath)) return watchKey;
+    }
+    final Map<Path, HashCode> hashCodeMap = PathUtils.createHashCodeMap(file);
     final String s = file.toFile().getAbsolutePath();
     final Pointer[] values = {CFStringRef.toCFString(s).getPointer()};
     final CFArrayRef pathsToWatch = CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);
-    final MacOSXWatchKey watchKey = new MacOSXWatchKey(this, events);
     final double latency = 0.5; /* Latency in seconds */
     final long kFSEventStreamEventIdSinceNow = -1; //  this is 0xFFFFFFFFFFFFFFFF
     final int kFSEventStreamCreateFlagNoDefer = 0x00000002;
@@ -80,6 +83,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     thread.setDaemon(true);
     thread.start();
     threadList.add(thread);
+    pathsWatching.add(file);
     return watchKey;
   }
 
@@ -119,6 +123,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     }
     threadList.clear();
     callbackList.clear();
+    pathsWatching.clear();
   }
 
   private static class MacOSXListeningCallback implements CarbonAPI.FSEventStreamCallback {
@@ -136,12 +141,12 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       final int length = numEvents.intValue();
 
       for (String folderName : eventPaths.getStringArray(0, length)) {
-        final Set<Path> filesOnDisk = recursiveListFiles(new File(folderName).toPath());
+        final Set<Path> filesOnDisk = PathUtils.recursiveListFiles(new File(folderName).toPath());
         //
         // We collect and process all actions for each category of created, modified and deleted as it appears a first thread
         // can start while a second thread can get through faster. If we do the collection for each category in a second
         // thread can get to the processing of modifications before the first thread is finished processing creates.
-        // In this case the modification will not be reported correctly. 
+        // In this case the modification will not be reported correctly.
         //
         // NOTE: We are now using a hash to determine if a file is different because if modifications happens closely
         // together the last modified time is not granular enough to be seen as a modification. This likely mitigates
@@ -173,7 +178,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       List<Path> modifiedFileList = new ArrayList<Path>();
       for (Path file : filesOnDisk) {
         HashCode storedHashCode = hashCodeMap.get(file);
-        HashCode newHashCode = hash(file);
+        HashCode newHashCode = PathUtils.hash(file);
         if (storedHashCode != null && !storedHashCode.equals(newHashCode) && newHashCode != null) {
           modifiedFileList.add(file);
           hashCodeMap.put(file, newHashCode);
@@ -186,10 +191,10 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       List<Path> createdFileList = new ArrayList<Path>();
       for (Path file : filesOnDisk) {
         if (!hashCodeMap.containsKey(file)) {
-          HashCode hashCode = hash(file);
+          HashCode hashCode = PathUtils.hash(file);
           if (hashCode != null) {
             createdFileList.add(file);
-            hashCodeMap.put(file, hashCode);            
+            hashCodeMap.put(file, hashCode);
           }
         }
       }

@@ -11,10 +11,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.takari.watchservice.jna;
+package io.methvin.watchservice.jna;
 
 import com.sun.jna.ptr.PointerByReference;
 
-public class CFRunLoopRef extends PointerByReference {
+public class CFArrayRef extends PointerByReference {
 
 }

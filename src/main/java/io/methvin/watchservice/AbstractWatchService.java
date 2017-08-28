@@ -11,17 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.takari.watchservice;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+package io.methvin.watchservice;
 
 import java.io.IOException;
 import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.util.Collections;
 import java.util.Objects;
+import java.util.StringJoiner;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -29,9 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nullable;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Abstract implementation of {@link WatchService}. Provides the means for registering and managing
@@ -40,11 +37,12 @@ import com.google.common.collect.ImmutableSet;
  * them.
  *
  * @author Colin Decker
+ * @author Greg Methvin
  */
 abstract class AbstractWatchService implements WatchService {
 
   private final BlockingQueue<WatchKey> queue = new LinkedBlockingQueue<>();
-  private final WatchKey poison = new AbstractWatchKey(this, null, ImmutableSet.<WatchEvent.Kind<?>>of());
+  private final WatchKey poison = new AbstractWatchKey(this, null, Collections.emptySet());
 
   private final AtomicBoolean open = new AtomicBoolean(true);
 
@@ -79,10 +77,6 @@ abstract class AbstractWatchService implements WatchService {
    * Called when the given key is cancelled. Does nothing by default.
    */
   public void cancelled(AbstractWatchKey key) {}
-
-  ImmutableList<WatchKey> queuedKeys() {
-    return ImmutableList.copyOf(queue);
-  }
 
   @Nullable
   @Override
@@ -146,8 +140,10 @@ abstract class AbstractWatchService implements WatchService {
     private final T context;
 
     public Event(Kind<T> kind, int count, @Nullable T context) {
-      this.kind = checkNotNull(kind);
-      checkArgument(count >= 0, "count (%s) must be non-negative", count);
+      this.kind = requireNonNull(kind);
+      if (count < 0) {
+        throw new IllegalArgumentException(String.format("count (%s) must be non-negative", count));
+      }
       this.count = count;
       this.context = context;
     }
@@ -186,10 +182,10 @@ abstract class AbstractWatchService implements WatchService {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this)
-        .add("kind", kind())
-        .add("count", count())
-        .add("context", context())
+      return new StringJoiner(", ", getClass().getSimpleName() + "[", "]")
+        .add("kind=" + kind())
+        .add("count=" + count())
+        .add("context=" + context())
         .toString();
     }
   }

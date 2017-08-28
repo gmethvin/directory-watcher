@@ -11,16 +11,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.takari.watchservice.jna;
+package io.methvin.watcher;
 
-import com.sun.jna.ptr.PointerByReference;
+import java.io.IOException;
 
-public class CFStringRef extends PointerByReference {
+@FunctionalInterface
+public interface DirectoryChangeListener {
 
-  public static CFStringRef toCFString(String s) {
-    final char[] chars = s.toCharArray();
-    int length = chars.length;
-    return CarbonAPI.INSTANCE.CFStringCreateWithCharacters(null, chars, CFIndex.valueOf(length));
+  void onEvent(DirectoryChangeEvent event) throws IOException;
+
+  default boolean isWatching() {
+    return true;
   }
 
 }

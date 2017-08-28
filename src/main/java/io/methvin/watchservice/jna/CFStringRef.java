@@ -11,10 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.takari.watchservice.jna;
+package io.methvin.watchservice.jna;
 
 import com.sun.jna.ptr.PointerByReference;
 
-public class CFAllocatorRef extends PointerByReference {
+public class CFStringRef extends PointerByReference {
+
+  public static CFStringRef toCFString(String s) {
+    final char[] chars = s.toCharArray();
+    int length = chars.length;
+    return CarbonAPI.INSTANCE.CFStringCreateWithCharacters(null, chars, CFIndex.valueOf(length));
+  }
 
 }
