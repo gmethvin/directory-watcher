@@ -35,18 +35,18 @@ public class DirectoryWatcherTest {
 
   @Test
   public void validateOsxDirectoryWatcher() throws Exception {
-
     Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
+
     File directory = new File(new File("").getAbsolutePath(), "target/directory");
     FileUtils.deleteDirectory(directory);
     directory.mkdirs();
-    runWatcher(directory.toPath(), new MacOSXListeningWatchService(), true);
+    runWatcher(directory.toPath(), new MacOSXListeningWatchService());
   }
 
   @Test
   public void validateOsxDirectoryWatcherPreExistingSubdir() throws Exception {
-
     Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
+
     File directory = new File(new File("").getAbsolutePath(), "target/directory");
     FileUtils.deleteDirectory(directory);
     directory.mkdirs();
@@ -66,20 +66,22 @@ public class DirectoryWatcherTest {
     assertTrue(fileInZupDir.exists());
 
     //files are written and done, now start the watcher
-    runWatcher(directory.toPath(), new MacOSXListeningWatchService(), true);
+    runWatcher(directory.toPath(), new MacOSXListeningWatchService());
 
   }
 
   @Test
   public void validateJdkDirectoryWatcher() throws Exception {
+    // The JDK watch service is basically unusable on mac since it polls every 10s
     Assume.assumeFalse(System.getProperty("os.name").toLowerCase().contains("mac"));
+
     File directory = new File(new File("").getAbsolutePath(), "target/directory");
     FileUtils.deleteDirectory(directory);
     directory.mkdirs();
-    runWatcher(directory.toPath(), FileSystems.getDefault().newWatchService(), false);
+    runWatcher(directory.toPath(), FileSystems.getDefault().newWatchService());
   }
 
-  protected void runWatcher(Path directory, WatchService watchService, boolean isMac) throws Exception {
+  protected void runWatcher(Path directory, WatchService watchService) throws Exception {
     //
     // start our service
     // play our events
@@ -114,7 +116,7 @@ public class DirectoryWatcherTest {
     List<FileSystemAction> actions = fileSystem.actions();
 
     TestDirectoryChangeListener listener = new TestDirectoryChangeListener(directory, actions);
-    DirectoryWatcher watcher = new DirectoryWatcher(Collections.singletonList(directory), listener, watchService, isMac);
+    DirectoryWatcher watcher = new DirectoryWatcher(Collections.singletonList(directory), listener, watchService);
 
     // Fire up the filesystem watcher
     CompletableFuture<Void> future = watcher.watchAsync();

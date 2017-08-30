@@ -58,18 +58,15 @@ public class DirectoryWatcher {
 
   public static DirectoryWatcher create(List<Path> paths, DirectoryChangeListener listener) throws IOException {
     boolean isMac = System.getProperty("os.name").toLowerCase().contains("mac");
-    if (isMac) {
-      return new DirectoryWatcher(paths, listener, new MacOSXListeningWatchService(), true);
-    } else {
-      return new DirectoryWatcher(paths, listener, FileSystems.getDefault().newWatchService(), false);
-    }
+    WatchService ws = isMac ? new MacOSXListeningWatchService() : FileSystems.getDefault().newWatchService();
+    return new DirectoryWatcher(paths, listener, ws);
   }
 
-  public DirectoryWatcher(List<Path> paths, DirectoryChangeListener listener, WatchService watchService, boolean isMac) throws IOException {
+  public DirectoryWatcher(List<Path> paths, DirectoryChangeListener listener, WatchService watchService) throws IOException {
     this.paths = paths;
     this.listener = listener;
     this.watchService = watchService;
-    this.isMac = isMac;
+    this.isMac = watchService instanceof MacOSXListeningWatchService;
     this.pathHashes = PathUtils.createHashCodeMap(paths);
     this.keyRoots = PathUtils.createKeyRootsMap();
 
@@ -177,18 +174,16 @@ public class DirectoryWatcher {
     if (isMac) {
       // For the mac implementation, we will get events for subdirectories too
       register(start);
-      return;
+    } else {
+      // registerRoot directory and sub-directories
+      Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
+        @Override
+        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+          register(dir);
+          return FileVisitResult.CONTINUE;
+        }
+      });
     }
-
-    // registerRoot directory and sub-directories
-    Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
-      @Override
-      public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-          throws IOException {
-        register(dir);
-        return FileVisitResult.CONTINUE;
-      }
-    });
   }
 
 }
