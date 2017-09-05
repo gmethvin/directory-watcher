@@ -124,7 +124,7 @@ public class DirectoryWatcherTest {
     fileSystem.playActions();
     // Wait for the future to complete which is when the right number of events are captured
     future.get(10, TimeUnit.SECONDS);
-    ListMultimap<String, WatchEvent.Kind<Path>> events = listener.events;
+    ListMultimap<String, WatchEvent.Kind<?>> events = listener.events;
     // Close the watcher
     watcher.close();
 
@@ -138,26 +138,26 @@ public class DirectoryWatcherTest {
     // with the corresponding event for that file. For a given path we definitely want
     // the order of the played actions to match the order of the events emitted.
     //
-    List<WatchEvent.Kind<Path>> one = events.get("one.txt");
+    List<WatchEvent.Kind<?>> one = events.get("one.txt");
     assertEquals(2, one.size());
     assertEquals(one.get(0), actions.get(0).kind);
     assertEquals(one.get(1), actions.get(5).kind);
 
-    List<WatchEvent.Kind<Path>> two = events.get("two.txt");
+    List<WatchEvent.Kind<?>> two = events.get("two.txt");
     assertEquals(1, two.size());
     assertEquals(two.get(0), actions.get(1).kind);
 
-    List<WatchEvent.Kind<Path>> three = events.get("three.txt");
+    List<WatchEvent.Kind<?>> three = events.get("three.txt");
     assertEquals(3, three.size());
     assertEquals(three.get(0), actions.get(2).kind);
     assertEquals(three.get(1), actions.get(3).kind);
     assertEquals(three.get(2), actions.get(4).kind);
 
-    List<WatchEvent.Kind<Path>> four = events.get("testDir/file1InDir.txt");
+    List<WatchEvent.Kind<?>> four = events.get("testDir/file1InDir.txt");
     assertEquals(1, four.size());
     assertEquals(three.get(0), actions.get(6).kind);
 
-    List<WatchEvent.Kind<Path>> five = events.get("testDir/file2InDir.txt");
+    List<WatchEvent.Kind<?>> five = events.get("testDir/file2InDir.txt");
     assertEquals(2, five.size());
     assertEquals(three.get(0), actions.get(7).kind);
     assertEquals(three.get(1), actions.get(8).kind);
@@ -180,7 +180,7 @@ public class DirectoryWatcherTest {
   class TestDirectoryChangeListener implements DirectoryChangeListener {
     final Path directory;
     final List<FileSystemAction> actions;
-    final ListMultimap<String, WatchEvent.Kind<Path>> events = ArrayListMultimap.create();
+    final ListMultimap<String, WatchEvent.Kind<?>> events = ArrayListMultimap.create();
     final int totalActions;
     int actionsProcessed = 0;
 
@@ -195,7 +195,7 @@ public class DirectoryWatcherTest {
       updateActions(event.path(), event.eventType().getWatchEventKind());
     }
 
-    void updateActions(Path path, WatchEvent.Kind<Path> kind) {
+    void updateActions(Path path, WatchEvent.Kind<?> kind) {
       System.out.println(kind + " ----> " + path);
       if (!path.toFile().isDirectory()) {
         events.put(directory.relativize(path).toString(), kind);

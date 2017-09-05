@@ -117,9 +117,6 @@ public class DirectoryWatcher {
       }
       for (WatchEvent<?> event : key.pollEvents()) {
         WatchEvent.Kind<?> kind = event.kind();
-        if (kind == OVERFLOW) {
-          continue;
-        }
         // Context for directory entry event is the file name of entry
         WatchEvent<Path> ev = PathUtils.cast(event);
         int count = ev.count();
@@ -129,7 +126,9 @@ public class DirectoryWatcher {
         }
         Path child = keyRoots.get(key).resolve(name);
         // if directory is created, and watching recursively, then register it and its sub-directories
-        if (kind == ENTRY_CREATE) {
+        if (kind == OVERFLOW) {
+          listener.onEvent(new DirectoryChangeEvent(EventType.OVERFLOW, child, count));
+        } else if (kind == ENTRY_CREATE) {
           if (Files.isDirectory(child, NOFOLLOW_LINKS)) {
             registerAll(child);
           } else {
@@ -175,7 +174,7 @@ public class DirectoryWatcher {
       // For the mac implementation, we will get events for subdirectories too
       register(start);
     } else {
-      // registerRoot directory and sub-directories
+      // register root directory and sub-directories
       Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
         @Override
         public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
