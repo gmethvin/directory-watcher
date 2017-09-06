@@ -9,7 +9,7 @@ First add the dependency for your preferred build system.
 ### SBT
 
 ```scala
-libraryDependencies += "io.methvin" % "directory-watcher" % "0.1.0"
+libraryDependencies += "io.methvin" % "directory-watcher" % "0.1.1"
 ```
 
 ### Maven
