@@ -153,14 +153,18 @@ public class DirectoryWatcherTest {
     assertEquals(three.get(1), actions.get(3).kind);
     assertEquals(three.get(2), actions.get(4).kind);
 
+    List<WatchEvent.Kind<?>> testDir = events.get("testDir");
+    assertEquals(1, testDir.size());
+    assertEquals(testDir.get(0), actions.get(6).kind);
+
     List<WatchEvent.Kind<?>> four = events.get("testDir/file1InDir.txt");
     assertEquals(1, four.size());
-    assertEquals(three.get(0), actions.get(6).kind);
+    assertEquals(three.get(0), actions.get(7).kind);
 
     List<WatchEvent.Kind<?>> five = events.get("testDir/file2InDir.txt");
     assertEquals(2, five.size());
-    assertEquals(three.get(0), actions.get(7).kind);
-    assertEquals(three.get(1), actions.get(8).kind);
+    assertEquals(three.get(0), actions.get(8).kind);
+    assertEquals(three.get(1), actions.get(9).kind);
 
   }
 
@@ -197,11 +201,9 @@ public class DirectoryWatcherTest {
 
     void updateActions(Path path, WatchEvent.Kind<?> kind) {
       System.out.println(kind + " ----> " + path);
-      if (!path.toFile().isDirectory()) {
-        events.put(directory.relativize(path).toString(), kind);
-        actionsProcessed++;
-        System.out.println(actionsProcessed + "/" + totalActions + " actions processed.");
-      }
+      events.put(directory.relativize(path).toString(), kind);
+      actionsProcessed++;
+      System.out.println(actionsProcessed + "/" + totalActions + " actions processed.");
     }
 
     @Override

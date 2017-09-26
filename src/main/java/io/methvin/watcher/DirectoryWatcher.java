@@ -133,8 +133,8 @@ public class DirectoryWatcher {
             registerAll(child);
           } else {
             pathHashes.put(child, PathUtils.hash(child));
-            listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, child, count));
           }
+          listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, child, count));
         } else if (kind == ENTRY_MODIFY) {
           HashCode existingHash = pathHashes.get(child);
           HashCode newHash = PathUtils.hash(child);

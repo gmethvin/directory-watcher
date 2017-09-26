@@ -34,12 +34,12 @@ public class FileSystem {
 
   public FileSystem create(File path, String content) {
     Path truePath = new File(directoryToOperateOn.toFile(), path.toString()).toPath();
-    actions.add(new FileSystemAction(ENTRY_CREATE, truePath, content));
+    actions.add(FileSystemAction.create(truePath, content));
     return this;
   }
 
   public FileSystem directory(String dir) {
-    actions.add(new FileSystemAction(FileSystemAction.Type.MKDIR, Paths.get(directoryToOperateOn.toString(), dir)));
+    actions.add(FileSystemAction.mkdir(Paths.get(directoryToOperateOn.toString(), dir)));
     return this;
   }
 
@@ -49,7 +49,7 @@ public class FileSystem {
 
   public FileSystem update(File path, String content) {
     Path truePath = new File(directoryToOperateOn.toFile(), path.toString()).toPath();
-    actions.add(new FileSystemAction(ENTRY_MODIFY, truePath, content));
+    actions.add(FileSystemAction.update(truePath, content));
     return this;
   }
 
@@ -59,19 +59,19 @@ public class FileSystem {
 
   public FileSystem delete(File path) {
     Path truePath = new File(directoryToOperateOn.toFile(), path.toString()).toPath();
-    actions.add(new FileSystemAction(ENTRY_DELETE, truePath));
+    actions.add(FileSystemAction.delete(truePath));
     return this;
   }
 
   public FileSystem wait(int millis) {
-    actions.add(new FileSystemAction(millis));
+    actions.add(FileSystemAction.waitFor(millis));
     return this;
   }
 
   public List<FileSystemAction> actions() {
     List<FileSystemAction> realActions = new ArrayList<FileSystemAction>();
     for (FileSystemAction a : actions) {
-      if (a.myType == FileSystemAction.Type.COUNTABLE) {
+      if (a.myType == FileSystemAction.Type.COUNTABLE || a.myType == FileSystemAction.Type.MKDIR) {
         System.out.println(String.format("adding action:%s:path:%s:myType:%s:", a.kind, (a.path != null) ? a.path : "", a.myType.name()));
         realActions.add(a);
       }
@@ -81,7 +81,7 @@ public class FileSystem {
 
   public void playActions() throws Exception {
     for (FileSystemAction action : actions) {
-      if (action.kind == ENTRY_CREATE) {
+      if (action.kind == ENTRY_CREATE && action.content != null) {
         FileUtils.fileWrite(action.path.toFile(), action.content);
       } else if (action.kind == ENTRY_MODIFY) {
         FileUtils.fileAppend(action.path.toFile().getAbsolutePath(), action.content);
@@ -120,32 +120,32 @@ public class FileSystem {
     final int millis;
     final Type myType;
 
-    FileSystemAction(int millis) {
-      this.millis = millis;
-      this.kind = null;
-      this.path = null;
-      this.content = null;
-      this.myType = Type.WAIT;
+    static FileSystemAction create(Path path, String content) {
+      return new FileSystemAction(ENTRY_CREATE, Type.COUNTABLE, path, content, 0);
     }
 
-    FileSystemAction(Type stub, Path path) {
-      this.millis = 0;
-      this.kind = null;
-      this.path = path;
-      this.content = null;
-      this.myType = Type.MKDIR;
+    static FileSystemAction mkdir(Path path) {
+      return new FileSystemAction(ENTRY_CREATE, Type.MKDIR, path, null, 0);
     }
 
-    FileSystemAction(WatchEvent.Kind<Path> type, Path path) {
-      this(type, path, null);
+    static FileSystemAction update(Path path, String content) {
+      return new FileSystemAction(ENTRY_MODIFY, Type.COUNTABLE, path, content, 0);
     }
 
-    FileSystemAction(WatchEvent.Kind<Path> type, Path path, String content) {
-      this.kind = type;
+    static FileSystemAction delete(Path path) {
+      return new FileSystemAction(ENTRY_DELETE, Type.COUNTABLE, path, null, 0);
+    }
+
+    static FileSystemAction waitFor(int millis) {
+      return new FileSystemAction(null, Type.WAIT, null, null, millis);
+    }
+
+    FileSystemAction(WatchEvent.Kind<Path> kind, Type type, Path path, String content, int millis) {
+      this.kind = kind;
       this.path = path;
       this.content = content;
-      this.millis = 0;
-      this.myType = Type.COUNTABLE;
+      this.millis = millis;
+      this.myType = type;
     }
   }
 }
