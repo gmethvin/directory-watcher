@@ -136,11 +136,15 @@ public class DirectoryWatcher {
           }
           listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, child, count));
         } else if (kind == ENTRY_MODIFY) {
+          // Note that existingHash may be null due to the file being created before we start listening
+          // It's important we don't discard the event in this case
           HashCode existingHash = pathHashes.get(child);
-          HashCode newHash = PathUtils.hash(child);
+
           // newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession
           // in this case the MODIFY event can be safely ignored
-          if (existingHash != null && newHash != null && !existingHash.equals(newHash)) {
+          HashCode newHash = PathUtils.hash(child);
+
+          if (newHash != null && !newHash.equals(existingHash)) {
             pathHashes.put(child, newHash);
             listener.onEvent(new DirectoryChangeEvent(EventType.MODIFY, child, count));
           }
