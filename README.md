@@ -1,3 +1,5 @@
+[![Travis CI](https://travis-ci.org/gmethvin/directory-watcher.svg?branch=master)](https://travis-ci.org/gmethvin/directory-watcher) [![Maven](https://img.shields.io/maven-central/v/io.methvin/directory-watcher.svg)](http://mvnrepository.com/artifact/io.methvin/directory-watcher)
+
 # Directory Watcher
 
 A recursive directory watcher utility for JDK 8+, along with a native OS X implementation of the WatchService.
