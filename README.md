@@ -11,7 +11,7 @@ First add the dependency for your preferred build system.
 ### SBT
 
 ```scala
-libraryDependencies += "io.methvin" % "directory-watcher" % "0.1.3"
+libraryDependencies += "io.methvin" % "directory-watcher" % "0.1.4"
 ```
 
 ### Maven
