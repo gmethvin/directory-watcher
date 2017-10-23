@@ -132,7 +132,11 @@ public class DirectoryWatcher {
           if (Files.isDirectory(child, NOFOLLOW_LINKS)) {
             registerAll(child);
           } else {
-            pathHashes.put(child, PathUtils.hash(child));
+            HashCode newHash = PathUtils.hash(child);
+            // newHash can be null if the file was deleted before we had a chance to hash it
+            if (newHash != null) {
+              pathHashes.put(child, newHash);
+            }
           }
           listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, child, count));
         } else if (kind == ENTRY_MODIFY) {
