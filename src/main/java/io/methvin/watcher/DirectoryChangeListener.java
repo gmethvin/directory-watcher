@@ -24,4 +24,8 @@ public interface DirectoryChangeListener {
     return true;
   }
 
+  // A handler for uncaught exceptions. This can rethrow the exception to terminate the watcher.
+  default void onException(Exception e) {
+    DirectoryWatcher.logger.debug("Got exception while watching", e);
+  }
 }

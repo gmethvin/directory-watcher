@@ -28,14 +28,16 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executor;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 
 import com.google.common.hash.HashCode;
 import io.methvin.watcher.DirectoryChangeEvent.EventType;
 import io.methvin.watchservice.MacOSXListeningWatchService;
 import io.methvin.watchservice.WatchablePath;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
@@ -44,6 +46,8 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 
 public class DirectoryWatcher {
+
+  static final Logger logger = LoggerFactory.getLogger(DirectoryWatcher.class);
 
   private final WatchService watchService;
   private final List<Path> paths;
@@ -89,21 +93,15 @@ public class DirectoryWatcher {
    */
   public CompletableFuture<Void> watchAsync(Executor executor) {
     return CompletableFuture.supplyAsync(() -> {
-      try {
-        watch();
-        return null;
-      } catch (IOException e) {
-        throw new RuntimeException("IOException while watching", e);
-      }
+      watch();
+      return null;
     }, executor);
   }
 
   /**
    * Watch the directories. Block until either the listener stops watching or the DirectoryWatcher is closed.
-   *
-   * @throws IOException if an I/O error occurs during this process.
    */
-  public void watch() throws IOException {
+  public void watch() {
     for (;;) {
       if (!listener.isWatching()) {
         return;
@@ -116,45 +114,55 @@ public class DirectoryWatcher {
         return;
       }
       for (WatchEvent<?> event : key.pollEvents()) {
-        WatchEvent.Kind<?> kind = event.kind();
-        // Context for directory entry event is the file name of entry
-        WatchEvent<Path> ev = PathUtils.cast(event);
-        int count = ev.count();
-        Path name = ev.context();
-        if (!keyRoots.containsKey(key)) {
-          throw new IllegalStateException("WatchService returned key [" + key + "] but it was not found in keyRoots!");
-        }
-        Path child = keyRoots.get(key).resolve(name);
-        // if directory is created, and watching recursively, then register it and its sub-directories
-        if (kind == OVERFLOW) {
-          listener.onEvent(new DirectoryChangeEvent(EventType.OVERFLOW, child, count));
-        } else if (kind == ENTRY_CREATE) {
-          if (Files.isDirectory(child, NOFOLLOW_LINKS)) {
-            registerAll(child);
-          } else {
-            HashCode newHash = PathUtils.hash(child);
-            // newHash can be null if the file was deleted before we had a chance to hash it
-            if (newHash != null) {
-              pathHashes.put(child, newHash);
+        try {
+          WatchEvent.Kind<?> kind = event.kind();
+          // Context for directory entry event is the file name of entry
+          WatchEvent<Path> ev = PathUtils.cast(event);
+          int count = ev.count();
+          Path name = ev.context();
+          if (!keyRoots.containsKey(key)) {
+            throw new IllegalStateException(
+                "WatchService returned key [" + key + "] but it was not found in keyRoots!");
+          }
+          Path child = keyRoots.get(key).resolve(name);
+          // if directory is created, and watching recursively, then register it and its sub-directories
+          logger.debug("{} [{}]", kind, child);
+          if (kind == OVERFLOW) {
+            listener.onEvent(new DirectoryChangeEvent(EventType.OVERFLOW, child, count));
+          } else if (kind == ENTRY_CREATE) {
+            if (Files.isDirectory(child, NOFOLLOW_LINKS)) {
+              registerAll(child);
+            } else {
+              HashCode newHash = PathUtils.hash(child);
+              // newHash can be null if the file was deleted before we had a chance to hash it
+              if (newHash != null) {
+                pathHashes.put(child, newHash);
+              } else {
+                logger.debug("Failed to hash created file [{}]. It may have been deleted.", child);
+              }
             }
-          }
-          listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, child, count));
-        } else if (kind == ENTRY_MODIFY) {
-          // Note that existingHash may be null due to the file being created before we start listening
-          // It's important we don't discard the event in this case
-          HashCode existingHash = pathHashes.get(child);
+            listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, child, count));
+          } else if (kind == ENTRY_MODIFY) {
+            // Note that existingHash may be null due to the file being created before we start listening
+            // It's important we don't discard the event in this case
+            HashCode existingHash = pathHashes.get(child);
 
-          // newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession
-          // in this case the MODIFY event can be safely ignored
-          HashCode newHash = PathUtils.hash(child);
+            // newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession
+            // in this case the MODIFY event can be safely ignored
+            HashCode newHash = PathUtils.hash(child);
 
-          if (newHash != null && !newHash.equals(existingHash)) {
-            pathHashes.put(child, newHash);
-            listener.onEvent(new DirectoryChangeEvent(EventType.MODIFY, child, count));
+            if (newHash != null && !newHash.equals(existingHash)) {
+              pathHashes.put(child, newHash);
+              listener.onEvent(new DirectoryChangeEvent(EventType.MODIFY, child, count));
+            } else {
+              logger.debug("Failed to hash modified file [{}]. It may have been deleted.", child);
+            }
+          } else if (kind == ENTRY_DELETE) {
+            pathHashes.remove(child);
+            listener.onEvent(new DirectoryChangeEvent(EventType.DELETE, child, count));
           }
-        } else if (kind == ENTRY_DELETE) {
-          pathHashes.remove(child);
-          listener.onEvent(new DirectoryChangeEvent(EventType.DELETE, child, count));
+        } catch (Exception e) {
+          listener.onException(e);
         }
       }
       boolean valid = key.reset();
@@ -165,6 +173,7 @@ public class DirectoryWatcher {
   }
 
   private void register(Path directory) throws IOException {
+    logger.debug("Registering [{}].", directory);
     Watchable watchable = isMac ? new WatchablePath(directory) : directory;
     keyRoots.put(watchable.register(watchService, new WatchEvent.Kind[] {ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY}), directory);
   }
