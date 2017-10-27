@@ -167,7 +167,14 @@ public class DirectoryWatcher {
       }
       boolean valid = key.reset();
       if (!valid) {
-        break;
+        logger.debug("WatchKey for [{}] no longer valid; removing.", key.watchable());
+        // remove the key from the keyRoots
+        keyRoots.remove(key);
+        // if there are no more keys left to watch, we can break out
+        if (keyRoots.isEmpty()) {
+          logger.debug("No more directories left to watch; terminating watcher.");
+          break;
+        }
       }
     }
   }
