@@ -154,7 +154,7 @@ public class DirectoryWatcher {
             if (newHash != null && !newHash.equals(existingHash)) {
               pathHashes.put(child, newHash);
               listener.onEvent(new DirectoryChangeEvent(EventType.MODIFY, child, count));
-            } else {
+            } else if (newHash == null) {
               logger.debug("Failed to hash modified file [{}]. It may have been deleted.", child);
             }
           } else if (kind == ENTRY_DELETE) {
