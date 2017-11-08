@@ -42,7 +42,7 @@ public class PathUtils {
         if (!f.exists()) {
           return null;
         }
-        return Files.hash(file.toFile(), HASH_FUNCTION);
+        return Files.asByteSource(file.toFile()).hash(HASH_FUNCTION);
       } else {
         return HASH_FUNCTION.newHasher().putString(file.toString(), Charsets.UTF_8).hash();
       }

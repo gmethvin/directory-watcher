@@ -51,6 +51,9 @@ lazy val `directory-watcher` = (project in file("."))
     )
   )
 
+fork in Test := true
+javaOptions in Test += "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
+
 publishMavenStyle := true
 publishTo := Some(
   if (isSnapshot.value)

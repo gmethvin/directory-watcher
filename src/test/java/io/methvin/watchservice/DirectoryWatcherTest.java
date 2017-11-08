@@ -129,7 +129,7 @@ public class DirectoryWatcherTest {
     watcher.close();
 
     // Let's see if everything works!
-    assertEquals(actions.size(), events.size());
+    assertEquals("actions.size", actions.size(), events.size());
     //
     // Now we make a map of the events keyed by the path. The order in which we
     // play the filesystem actions is not necessarily the order in which the events are
@@ -139,30 +139,30 @@ public class DirectoryWatcherTest {
     // the order of the played actions to match the order of the events emitted.
     //
     List<WatchEvent.Kind<?>> one = events.get("one.txt");
-    assertEquals(2, one.size());
+    assertEquals("one.size", 2, one.size());
     assertEquals(one.get(0), actions.get(0).kind);
     assertEquals(one.get(1), actions.get(5).kind);
 
     List<WatchEvent.Kind<?>> two = events.get("two.txt");
-    assertEquals(1, two.size());
+    assertEquals("two.size", 1, two.size());
     assertEquals(two.get(0), actions.get(1).kind);
 
     List<WatchEvent.Kind<?>> three = events.get("three.txt");
-    assertEquals(3, three.size());
+    assertEquals("three.size", 3, three.size());
     assertEquals(three.get(0), actions.get(2).kind);
     assertEquals(three.get(1), actions.get(3).kind);
     assertEquals(three.get(2), actions.get(4).kind);
 
     List<WatchEvent.Kind<?>> testDir = events.get("testDir");
-    assertEquals(1, testDir.size());
+    assertEquals("testDir.size", 1, testDir.size());
     assertEquals(testDir.get(0), actions.get(6).kind);
 
     List<WatchEvent.Kind<?>> four = events.get("testDir/file1InDir.txt");
-    assertEquals(1, four.size());
+    assertEquals("four.size", 1, four.size());
     assertEquals(three.get(0), actions.get(7).kind);
 
     List<WatchEvent.Kind<?>> five = events.get("testDir/file2InDir.txt");
-    assertEquals(2, five.size());
+    assertEquals("five.size", 2, five.size());
     assertEquals(three.get(0), actions.get(8).kind);
     assertEquals(three.get(1), actions.get(9).kind);
 
@@ -200,8 +200,9 @@ public class DirectoryWatcherTest {
     }
 
     void updateActions(Path path, WatchEvent.Kind<?> kind) {
-      System.out.println(kind + " ----> " + path);
-      events.put(directory.relativize(path).toString(), kind);
+      String relativePath = directory.relativize(path).toString().replace('\\', '/');
+      System.out.println(kind + " ----> " + relativePath);
+      events.put(relativePath, kind);
       actionsProcessed++;
       System.out.println(actionsProcessed + "/" + totalActions + " actions processed.");
     }

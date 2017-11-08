@@ -33,6 +33,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 
 import com.google.common.hash.HashCode;
+import com.sun.nio.file.ExtendedWatchEventModifier;
 import io.methvin.watcher.DirectoryChangeEvent.EventType;
 import io.methvin.watchservice.MacOSXListeningWatchService;
 import io.methvin.watchservice.WatchablePath;
@@ -55,6 +56,9 @@ public class DirectoryWatcher {
   private final DirectoryChangeListener listener;
   private final Map<Path, HashCode> pathHashes;
   private final Map<WatchKey, Path> keyRoots;
+
+  // this is set to true/false depending on whether recursive watching is supported natively
+  private Boolean fileTreeSupported = null;
 
   public static DirectoryWatcher create(Path path, DirectoryChangeListener listener) throws IOException {
     return create(Collections.singletonList(path), listener);
@@ -119,47 +123,51 @@ public class DirectoryWatcher {
           // Context for directory entry event is the file name of entry
           WatchEvent<Path> ev = PathUtils.cast(event);
           int count = ev.count();
-          Path name = ev.context();
+          Path eventPath = ev.context();
           if (!keyRoots.containsKey(key)) {
             throw new IllegalStateException(
                 "WatchService returned key [" + key + "] but it was not found in keyRoots!");
           }
-          Path child = keyRoots.get(key).resolve(name);
+          Path childPath = eventPath == null ? null : keyRoots.get(key).resolve(eventPath);
+          logger.debug("{} [{}]", kind, childPath);
           // if directory is created, and watching recursively, then register it and its sub-directories
-          logger.debug("{} [{}]", kind, child);
           if (kind == OVERFLOW) {
-            listener.onEvent(new DirectoryChangeEvent(EventType.OVERFLOW, child, count));
+            listener.onEvent(new DirectoryChangeEvent(EventType.OVERFLOW, childPath, count));
+          } else if (eventPath == null) {
+            throw new IllegalStateException("WatchService returned a null path for " + kind.name());
           } else if (kind == ENTRY_CREATE) {
-            if (Files.isDirectory(child, NOFOLLOW_LINKS)) {
-              registerAll(child);
+            if (Files.isDirectory(childPath, NOFOLLOW_LINKS)) {
+              if (!Boolean.TRUE.equals(fileTreeSupported)) {
+                registerAll(childPath);
+              }
             } else {
-              HashCode newHash = PathUtils.hash(child);
+              HashCode newHash = PathUtils.hash(childPath);
               // newHash can be null if the file was deleted before we had a chance to hash it
               if (newHash != null) {
-                pathHashes.put(child, newHash);
+                pathHashes.put(childPath, newHash);
               } else {
-                logger.debug("Failed to hash created file [{}]. It may have been deleted.", child);
+                logger.debug("Failed to hash created file [{}]. It may have been deleted.", childPath);
               }
             }
-            listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, child, count));
+            listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, childPath, count));
           } else if (kind == ENTRY_MODIFY) {
             // Note that existingHash may be null due to the file being created before we start listening
             // It's important we don't discard the event in this case
-            HashCode existingHash = pathHashes.get(child);
+            HashCode existingHash = pathHashes.get(childPath);
 
             // newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession
             // in this case the MODIFY event can be safely ignored
-            HashCode newHash = PathUtils.hash(child);
+            HashCode newHash = PathUtils.hash(childPath);
 
             if (newHash != null && !newHash.equals(existingHash)) {
-              pathHashes.put(child, newHash);
-              listener.onEvent(new DirectoryChangeEvent(EventType.MODIFY, child, count));
+              pathHashes.put(childPath, newHash);
+              listener.onEvent(new DirectoryChangeEvent(EventType.MODIFY, childPath, count));
             } else if (newHash == null) {
-              logger.debug("Failed to hash modified file [{}]. It may have been deleted.", child);
+              logger.debug("Failed to hash modified file [{}]. It may have been deleted.", childPath);
             }
           } else if (kind == ENTRY_DELETE) {
-            pathHashes.remove(child);
-            listener.onEvent(new DirectoryChangeEvent(EventType.DELETE, child, count));
+            pathHashes.remove(childPath);
+            listener.onEvent(new DirectoryChangeEvent(EventType.DELETE, childPath, count));
           }
         } catch (Exception e) {
           listener.onException(e);
@@ -179,11 +187,6 @@ public class DirectoryWatcher {
     }
   }
 
-  private void register(Path directory) throws IOException {
-    logger.debug("Registering [{}].", directory);
-    Watchable watchable = isMac ? new WatchablePath(directory) : directory;
-    keyRoots.put(watchable.register(watchService, new WatchEvent.Kind[] {ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY}), directory);
-  }
 
   public DirectoryChangeListener getListener() {
     return listener;
@@ -194,19 +197,41 @@ public class DirectoryWatcher {
   }
 
   private void registerAll(final Path start) throws IOException {
-    if (isMac) {
-      // For the mac implementation, we will get events for subdirectories too
-      register(start);
+    if (!Boolean.FALSE.equals(fileTreeSupported)) {
+      // Try using FILE_TREE modifier since we aren't certain that it's unsupported
+      try {
+        register(start, true);
+        // We didn't get an UnsupportedOperationException so assume FILE_TREE is supported
+        fileTreeSupported = true;
+      } catch (UnsupportedOperationException e) {
+        // UnsupportedOperationException should only happen if FILE_TREE is unsupported
+        logger.debug("Assuming ExtendedWatchEventModifier.FILE_TREE is not supported", e);
+        fileTreeSupported = false;
+        // If we failed to use the FILE_TREE modifier, try again without
+        registerAll(start);
+      }
     } else {
-      // register root directory and sub-directories
+      // Since FILE_TREE is unsupported, register root directory and sub-directories
       Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
         @Override
         public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-          register(dir);
+          register(dir, false);
           return FileVisitResult.CONTINUE;
         }
       });
     }
+  }
+
+  // Internal method to be used by registerAll
+  private void register(Path directory, boolean useFileTreeModifier) throws IOException {
+    logger.debug("Registering [{}].", directory);
+    Watchable watchable = isMac ? new WatchablePath(directory) : directory;
+    WatchEvent.Modifier[] modifiers = useFileTreeModifier
+        ? new WatchEvent.Modifier[] {ExtendedWatchEventModifier.FILE_TREE}
+        : new WatchEvent.Modifier[] {};
+    WatchEvent.Kind<?>[] kinds = new WatchEvent.Kind<?>[] {ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY};
+    WatchKey watchKey = watchable.register(watchService, kinds, modifiers);
+    keyRoots.put(watchKey, directory);
   }
 
 }

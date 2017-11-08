@@ -1,6 +1,6 @@
-[![Travis CI](https://travis-ci.org/gmethvin/directory-watcher.svg?branch=master)](https://travis-ci.org/gmethvin/directory-watcher) [![Maven](https://img.shields.io/maven-central/v/io.methvin/directory-watcher.svg)](http://mvnrepository.com/artifact/io.methvin/directory-watcher)
-
 # Directory Watcher
+
+[![Travis CI](https://travis-ci.org/gmethvin/directory-watcher.svg?branch=master)](https://travis-ci.org/gmethvin/directory-watcher) [![AppVeyor CI](https://ci.appveyor.com/api/projects/status/j8u639uf2iovtf15/branch/master?svg=true)](https://ci.appveyor.com/project/gmethvin/directory-watcher/branch/master) [![Maven](https://img.shields.io/maven-central/v/io.methvin/directory-watcher.svg)](http://mvnrepository.com/artifact/io.methvin/directory-watcher)
 
 A recursive directory watcher utility for JDK 8+, along with a native OS X implementation of the WatchService.
 
@@ -70,7 +70,9 @@ public class DirectoryWatchingUtility {
 
 ## Implementation differences
 
-The Mac OS X implementation returns the full absolute path of the file in its change notifications, so the returned path does not need to be resolved against the `WatchKey`. The `DirectoryWatcher` abstracts away the details of that though.
+The Mac OS X implementation returns the full absolute path of the file in its change notifications, so the returned path does not need to be resolved against the `WatchKey`. The `DirectoryWatcher` abstracts away the details of that.
+
+The Mac OS X WatchService watches recursively by default. On platforms that support it (Windows), the `DirectoryWatcher` utility uses `ExtendedWatchEventModifier.FILE_TREE` to watch recursively. On other platforms (e.g. Linux) it will watch the current directory and register a new `WatchKey` for subdirectories as they are added.
 
 ## Credits
 
