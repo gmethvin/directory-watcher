@@ -1,0 +1,21 @@
+version: '{build}'
+os: Windows Server 2012
+environment:
+  JAVA_OPTS: -Dfile.encoding=UTF8
+  SBT_OPTS: -Dfile.encoding=UTF8
+install:
+  - ps: |
+      Add-Type -AssemblyName System.IO.Compression.FileSystem
+      if (!(Test-Path -Path "C:\sbt" )) {
+        (new-object System.Net.WebClient).DownloadFile(
+          'https://github.com/sbt/sbt/releases/download/v1.0.3/sbt-1.0.3.zip',
+          'C:\sbt-bin.zip'
+        )
+        [System.IO.Compression.ZipFile]::ExtractToDirectory("C:\sbt-bin.zip", "C:\sbt")
+      }
+  - cmd: SET PATH=C:\sbt\sbt\bin;%JAVA_HOME%\bin;%PATH%
+  - cmd: SET SBT_OPTS=-Xmx4G -XX:MaxPermSize=1G
+build_script:
+  - sbt compile
+test_script:
+  - sbt test
