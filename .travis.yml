@@ -1,7 +1,26 @@
 sudo: false
-language: scala
-jdk:
-- oraclejdk8
+scala: 2.12.4
+os: linux
+
+before_install:
+  # osx on travis doesn't support sbt, so install it
+  - if [[ "$TRAVIS_OS_NAME" = "osx" ]]; then
+      brew update;
+      brew install sbt;
+    fi
+script:
+  - sbt compile test publishLocal
+
+# Note: OSX has issues with oraclejdk8
+# see https://github.com/travis-ci/travis-ci/issues/2316
+matrix:
+  include:
+    - jdk: oraclejdk8
+      language: scala
+    - os: osx
+      osx_image: xcode8
+      language: java
+
 cache:
   directories:
   - "$HOME/.ivy2/cache"
@@ -9,5 +28,3 @@ before_cache:
 - rm -rf $HOME/.ivy2/cache/io.methvin/*
 - rm -rf $HOME/.ivy2/cache/scala_*/sbt_*/io.methvin/*
 - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print0 | xargs -n10 -0 rm
-script:
-- sbt test publishLocal
