@@ -76,8 +76,11 @@ public class PathUtils {
     Set<Path> files = new HashSet<Path>();
     files.add(file);
     if (file.toFile().isDirectory()) {
-      for (File child : file.toFile().listFiles()) {
-        files.addAll(recursiveListFiles(child.toPath()));
+      File[] filesInDirectory = file.toFile().listFiles();
+      if (filesInDirectory != null) {
+        for (File child : filesInDirectory) {
+          files.addAll(recursiveListFiles(child.toPath()));
+        }
       }
     }
     return files;

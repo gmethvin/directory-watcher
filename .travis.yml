@@ -23,8 +23,8 @@ matrix:
 
 cache:
   directories:
-  - "$HOME/.ivy2/cache"
+    - "$HOME/.ivy2/cache"
 before_cache:
-- rm -rf $HOME/.ivy2/cache/io.methvin/*
-- rm -rf $HOME/.ivy2/cache/scala_*/sbt_*/io.methvin/*
-- find $HOME/.ivy2/cache -name "ivydata-*.properties" -print0 | xargs -n10 -0 rm
+  - rm -rf $HOME/.ivy2/cache/io.methvin/*
+  - rm -rf $HOME/.ivy2/cache/scala_*/sbt_*/io.methvin/*
+  - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print0 | xargs -n10 -0 rm

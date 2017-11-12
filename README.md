@@ -1,6 +1,6 @@
 # Directory Watcher
 
-[![Travis CI](https://travis-ci.org/gmethvin/directory-watcher.svg?branch=master)](https://travis-ci.org/gmethvin/directory-watcher) [![AppVeyor CI](https://ci.appveyor.com/api/projects/status/j8u639uf2iovtf15/branch/master?svg=true)](https://ci.appveyor.com/project/gmethvin/directory-watcher/branch/master) [![Maven](https://img.shields.io/maven-central/v/io.methvin/directory-watcher.svg)](http://mvnrepository.com/artifact/io.methvin/directory-watcher)
+[![Travis CI](https://travis-ci.org/gmethvin/directory-watcher.svg?branch=master)](https://travis-ci.org/gmethvin/directory-watcher) [![AppVeyor CI](https://ci.appveyor.com/api/projects/status/j8u639uf2iovtf15/branch/master?svg=true)](https://ci.appveyor.com/project/gmethvin/directory-watcher/branch/master) [![Maven](https://img.shields.io/maven-central/v/io.methvin/directory-watcher.svg)](https://mvnrepository.com/artifact/io.methvin/directory-watcher)
 
 A recursive directory watcher utility for JDK 8+, along with a native OS X implementation of the WatchService.
 
@@ -8,27 +8,29 @@ A recursive directory watcher utility for JDK 8+, along with a native OS X imple
 
 First add the dependency for your preferred build system.
 
-### SBT
+For sbt:
 
 ```scala
-libraryDependencies += "io.methvin" % "directory-watcher" % "0.3.0"
+libraryDependencies += "io.methvin" % "directory-watcher" % directoryWatcherVersion
 ```
 
-### Maven
+For maven:
 
 ```xml
 <dependency>
     <groupId>io.methvin</groupId>
     <artifactId>directory-watcher</artifactId>
-    <version>0.3.0</version>
+    <version>${directoryWatcherVersion}</version>
 </dependency>
 ```
+
+Replace the `directoryWatcherVersion` with the latest version ([![Maven](https://img.shields.io/maven-central/v/io.methvin/directory-watcher.svg)](https://mvnrepository.com/artifact/io.methvin/directory-watcher)), or any older version you wish to use.
 
 ### API
 
 Use `DirectoryWatcher.create` to create a new watcher, then use either `watch()` to block the current thread while watching or `watchAsync()` to watch in another thread. This will automatically detect Mac OS X and provide a native implementation based on the Carbon File System Events API.
 
-### Example
+### Basic Java Example
 
 ```java
 package com.example;
@@ -68,6 +70,44 @@ public class DirectoryWatchingUtility {
 }
 ```
 
+## Scala better-files integration
+
+While the core `directory-watcher` library is Java only, we also provide `better-files` integration, which is the recommended API for Scala 2.12 users. To add the library:
+
+```scala
+libraryDependencies += "io.methvin" %% "directory-watcher-better-files" % directoryWatcherVersion
+```
+
+
+The API is the same as in better-files, but using a different abstract class, `RecursiveFileMonitor`.
+
+```scala
+import better.files._
+import io.methvin.better.files._
+
+val watcher = new RecursiveFileMonitor(myDir) {
+  override def onCreate(file: File, count: Int) = println(s"$file got created")
+  override def onModify(file: File, count: Int) = println(s"$file got modified $count times")
+  override def onDelete(file: File, count: Int) = println(s"$file got deleted")
+}
+watcher.start()
+```
+It also supports overriding `onEvent`:
+```scala
+import java.nio.file.{Path, StandardWatchEventKinds => EventType, WatchEvent}
+
+val watcher = new RecursiveFileMonitor(myDir) {
+  override def onEvent(eventType: WatchEvent.Kind[Path], file: File, count: Int) = eventType match {
+    case EventType.ENTRY_CREATE => println(s"$file got created")
+    case EventType.ENTRY_MODIFY => println(s"$file got modified $count")
+    case EventType.ENTRY_DELETE => println(s"$file got deleted")
+  }
+}
+watcher.start()
+```
+
+Note that unlike the better-files `FileMonitor` implementation, this implementation only fully supports recursive monitoring of a directory.
+
 ## Implementation differences
 
 The Mac OS X implementation returns the full absolute path of the file in its change notifications, so the returned path does not need to be resolved against the `WatchKey`. The `DirectoryWatcher` abstracts away the details of that.
@@ -76,4 +116,4 @@ The Mac OS X WatchService watches recursively by default. On platforms that supp
 
 ## Credits
 
-Large parts of this code are taken from https://github.com/takari/directory-watcher/, which is also licensed under the Apache 2 license. The library has been updated to make it more idiomatic Java 8 style and to remove some of the special cases.
+Large parts of the Java directory-watcher code, particularly the `MacOSXListeningWatchService` implementation, are taken from https://github.com/takari/directory-watcher/, which is also licensed under the Apache 2 license.
