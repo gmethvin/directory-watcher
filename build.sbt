@@ -1,5 +1,4 @@
 
-name := "directory-watcher"
 organization := "io.methvin"
 licenses := Seq(
   "Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html")
@@ -11,48 +10,56 @@ scmInfo := Some(
     "scm:git@github.com:gmethvin/directory-watcher.git"
   )
 )
-pomExtra :=
-  <developers>
-    <developer>
-      <id>gmethvin</id>
-      <name>Greg Methvin</name>
-      <roles>
-        <role>Maintainer</role>
-        <role>API improvements and simplified implementation</role>
-      </roles>
-    </developer>
-    <developer>
-    <name>Steve Mc Leod</name>
-    <roles>
-      <role>Original code and idea</role>
-    </roles>
-    </developer>
-    <developer>
-      <id>gjoseph</id>
-      <name>Grégory Joseph</name>
-      <roles>
-        <role>Port to Java 7</role>
-      </roles>
-    </developer>
-  </developers>
+developers := List(
+  Developer("gmethvin", "Greg Methvin", "greg@methvin.net", new URL("https://github.com/gmethvin"))
+)
 
-lazy val `directory-watcher` = (project in file("."))
+// directory-watcher is a Java-only library. No Scala dependencies should be added.
+lazy val `directory-watcher` = (project in file("core"))
+  .settings(commonSettings)
   .settings(
+    autoScalaLibrary := false,
     crossPaths := false,
     libraryDependencies ++= Seq(
       "net.java.dev.jna" % "jna" % "4.2.1",
       "com.google.guava" % "guava" % "23.0",
       "org.slf4j" % "slf4j-api" % "1.7.25",
 
-      "org.slf4j" % "slf4j-simple" % "1.7.25" % Test,
-      "com.novocode" % "junit-interface" % "0.11" % Test,
       "io.airlift" % "command" % "0.2" % Test,
       "org.codehaus.plexus" % "plexus-utils" % "3.0.22" % Test
     )
   )
 
-fork in Test := true
-javaOptions in Test += "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
+// directory-watcher-better-files is a Scala library.
+lazy val `directory-watcher-better-files` = (project in file("better-files"))
+  .settings(
+    scalaVersion := "2.12.4",
+    crossPaths := true,
+    libraryDependencies ++= Seq(
+      "com.github.pathikrit" %% "better-files" % "3.2.0",
+      "org.scalatest" %% "scalatest" % "3.0.4" % Test
+    )
+  )
+  .dependsOn(`directory-watcher`)
+
+lazy val root = (project in file("."))
+  .aggregate(`directory-watcher`, `directory-watcher-better-files`)
+  .settings(commonSettings)
+  .settings(
+    PgpKeys.publishSigned := {},
+    publish := {},
+    publishLocal := {},
+    publishArtifact := false
+  )
+
+def commonSettings = Seq(
+  fork in Test := true,
+  javaOptions in Test += "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
+  libraryDependencies ++= Seq(
+    "com.novocode" % "junit-interface" % "0.11" % Test,
+    "org.slf4j" % "slf4j-simple" % "1.7.25" % Test,
+  )
+)
 
 publishMavenStyle := true
 publishTo := Some(
@@ -64,6 +71,7 @@ publishTo := Some(
 
 import ReleaseTransformations._
 releasePublishArtifactsAction := PgpKeys.publishSigned.value
+releaseCrossBuild := true
 releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies,
   inquireVersions,
