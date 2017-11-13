@@ -26,11 +26,11 @@ For maven:
 
 Replace the `directoryWatcherVersion` with the latest version ([![Maven](https://img.shields.io/maven-central/v/io.methvin/directory-watcher.svg)](https://mvnrepository.com/artifact/io.methvin/directory-watcher)), or any older version you wish to use.
 
-### API
+## Java API
 
 Use `DirectoryWatcher.create` to create a new watcher, then use either `watch()` to block the current thread while watching or `watchAsync()` to watch in another thread. This will automatically detect Mac OS X and provide a native implementation based on the Carbon File System Events API.
 
-### Basic Java Example
+### Java Example
 
 ```java
 package com.example;
@@ -70,7 +70,7 @@ public class DirectoryWatchingUtility {
 }
 ```
 
-## Scala better-files integration
+## better-files integration (Scala)
 
 While the core `directory-watcher` library is Java only, we also provide `better-files` integration, which is the recommended API for Scala 2.12 users. To add the library:
 
@@ -78,21 +78,23 @@ While the core `directory-watcher` library is Java only, we also provide `better
 libraryDependencies += "io.methvin" %% "directory-watcher-better-files" % directoryWatcherVersion
 ```
 
-
 The API is the same as in better-files, but using a different abstract class, `RecursiveFileMonitor`.
 
 ```scala
 import better.files._
 import io.methvin.better.files._
 
+val myDir = File("/directory/to/watch/")
 val watcher = new RecursiveFileMonitor(myDir) {
   override def onCreate(file: File, count: Int) = println(s"$file got created")
   override def onModify(file: File, count: Int) = println(s"$file got modified $count times")
   override def onDelete(file: File, count: Int) = println(s"$file got deleted")
 }
+
+import scala.concurrent.ExecutionContext.Implicits.global
 watcher.start()
 ```
-It also supports overriding `onEvent`:
+It also supports overriding `onEvent`, for example:
 ```scala
 import java.nio.file.{Path, StandardWatchEventKinds => EventType, WatchEvent}
 
@@ -103,16 +105,17 @@ val watcher = new RecursiveFileMonitor(myDir) {
     case EventType.ENTRY_DELETE => println(s"$file got deleted")
   }
 }
-watcher.start()
 ```
 
-Note that unlike the better-files `FileMonitor` implementation, this implementation only fully supports recursive monitoring of a directory.
+Note that unlike the better-files `FileMonitor` implementation, this implementation only supports fully recursive watching.
 
-## Implementation differences
+## Implementation differences from standard WatchService
 
-The Mac OS X implementation returns the full absolute path of the file in its change notifications, so the returned path does not need to be resolved against the `WatchKey`. The `DirectoryWatcher` abstracts away the details of that.
+The Mac OS X implementation returns the full absolute path of the file in its change notifications, so the returned path does not need to be resolved against the `WatchKey`. This implementation also only watches recursively, so be aware of that if you choose to use it in another context.
 
-The Mac OS X WatchService watches recursively by default. On platforms that support it (Windows), the `DirectoryWatcher` utility uses `ExtendedWatchEventModifier.FILE_TREE` to watch recursively. On other platforms (e.g. Linux) it will watch the current directory and register a new `WatchKey` for subdirectories as they are added.
+On platforms that support it (Windows), the `DirectoryWatcher` utility uses `ExtendedWatchEventModifier.FILE_TREE` to watch recursively. On other platforms (e.g. Linux) it will watch the current directory and register a new `WatchKey` for subdirectories as they are added.
+
+In addition to forwarding events from the underlying `WatchService` implementation, `DirectoryWatcher` also hashes files to determine if changes actually occurred. This tends to reduce the likelihood of duplicate or useless events and helps provide a more consistent experience across platforms.
 
 ## Credits
 
