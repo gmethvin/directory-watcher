@@ -2,7 +2,7 @@
 
 [![Travis CI](https://travis-ci.org/gmethvin/directory-watcher.svg?branch=master)](https://travis-ci.org/gmethvin/directory-watcher) [![AppVeyor CI](https://ci.appveyor.com/api/projects/status/j8u639uf2iovtf15/branch/master?svg=true)](https://ci.appveyor.com/project/gmethvin/directory-watcher/branch/master) [![Maven](https://img.shields.io/maven-central/v/io.methvin/directory-watcher.svg)](https://mvnrepository.com/artifact/io.methvin/directory-watcher)
 
-A recursive directory watcher utility for JDK 8+, along with a native OS X implementation of the WatchService.
+A directory watcher utility for JDK 8+ that aims to provide accurate and efficient recursive watching for Linux, macOS and Windows. In particular, this library provides a JNA-based `WatchService` for Mac OS X to replace the default polling-based JDK implementation.
 
 ## Getting started
 
@@ -113,10 +113,14 @@ Note that unlike the better-files `FileMonitor` implementation, this implementat
 
 The Mac OS X implementation returns the full absolute path of the file in its change notifications, so the returned path does not need to be resolved against the `WatchKey`. This implementation also only watches recursively, so be aware of that if you choose to use it in another context.
 
-On platforms that support it (Windows), the `DirectoryWatcher` utility uses `ExtendedWatchEventModifier.FILE_TREE` to watch recursively. On other platforms (e.g. Linux) it will watch the current directory and register a new `WatchKey` for subdirectories as they are added.
+On platforms that support it (Windows), the `DirectoryWatcher` utility and better-files watcher use `ExtendedWatchEventModifier.FILE_TREE` to watch recursively. On other platforms (e.g. Linux) it will watch the current directory and register a new `WatchKey` for subdirectories as they are added.
 
 In addition to forwarding events from the underlying `WatchService` implementation, `DirectoryWatcher` also hashes files to determine if changes actually occurred. This tends to reduce the likelihood of duplicate or useless events and helps provide a more consistent experience across platforms.
 
 ## Credits
 
 Large parts of the Java directory-watcher code, particularly the `MacOSXListeningWatchService` implementation, are taken from https://github.com/takari/directory-watcher/, which is also licensed under the Apache 2 license.
+
+## License
+
+This library is licensed under the Apache 2 license. See LICENSE for more information.
