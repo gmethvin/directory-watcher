@@ -1,9 +1,5 @@
 package io.methvin.watchservice;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
@@ -15,23 +11,60 @@ import java.nio.file.WatchService;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ListMultimap;
+import io.methvin.watcher.DirectoryChangeEvent;
+import io.methvin.watcher.DirectoryChangeListener;
+import io.methvin.watcher.DirectoryWatcher;
+import io.methvin.watchservice.FileSystem.FileSystemAction;
 import org.codehaus.plexus.util.FileUtils;
 import org.junit.Assume;
 import org.junit.Test;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
-
-import io.methvin.watcher.DirectoryChangeListener;
-import io.methvin.watcher.DirectoryChangeEvent;
-import io.methvin.watcher.DirectoryWatcher;
-import io.methvin.watchservice.FileSystem.FileSystemAction;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
+import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class DirectoryWatcherTest {
+
+  @Test
+  public void validateOsxWatchKeyOverflow() throws Exception {
+    Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
+
+    File directory = new File(new File("").getAbsolutePath(), "target/directory");
+    FileUtils.deleteDirectory(directory);
+    directory.mkdirs();
+    MacOSXListeningWatchService service = new MacOSXListeningWatchService();
+    MacOSXWatchKey key = new MacOSXWatchKey(service,
+        ImmutableList.of(ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY));
+    // Note: this assumes we set io.methvin.watchService.queueSize to a small enough value
+    int totalEvents = 0;
+    for (int i = 0; i < 10; i++) {
+      Path toSignal = Paths.get(directory.toPath().toAbsolutePath().toString() + "/" + i);
+      key.signalEvent(ENTRY_CREATE, toSignal);
+      key.signalEvent(ENTRY_MODIFY, toSignal);
+      key.signalEvent(ENTRY_DELETE, toSignal);
+      totalEvents += 3;
+    }
+    int overflowCount = 0;
+    List<WatchEvent<?>> events = key.pollEvents();
+    for (WatchEvent<?> event : events) {
+      if (event.kind() == OVERFLOW) {
+        overflowCount = event.count();
+        break;
+      }
+    }
+    assertTrue("OVERFLOW event must exist", overflowCount > 0);
+    assertTrue("Overflow count must equal number of missing events",
+        totalEvents == events.size() + overflowCount - 1);
+  }
 
   @Test
   public void validateOsxDirectoryWatcher() throws Exception {
