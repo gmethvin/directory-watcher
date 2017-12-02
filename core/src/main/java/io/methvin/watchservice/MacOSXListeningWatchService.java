@@ -44,18 +44,55 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
  * File System Events API.
  *
  * @author Steve McLeod
+ * @author Greg Methvin
  */
 public class MacOSXListeningWatchService extends AbstractWatchService {
 
+  /**
+   * Configuration for the watch service.
+   */
+  public interface Config {
+
+    double DEFAULT_LATENCY = 0.5;
+    int DEFAULT_QUEUE_SIZE = 1024;
+
+    /**
+     * The maximum number of seconds to wait after hearing about an event
+     */
+    default double latency() {
+      return DEFAULT_LATENCY;
+    }
+
+    /**
+     * The size of the queue used for each WatchKey
+     */
+    default int queueSize() {
+      return DEFAULT_QUEUE_SIZE;
+    }
+  }
+
   // need to keep reference to callbacks to prevent garbage collection
   @SuppressWarnings({"MismatchedQueryAndUpdateOfCollection"})
-  private final List<CarbonAPI.FSEventStreamCallback> callbackList = new ArrayList<CarbonAPI.FSEventStreamCallback>();
-  private final List<CFRunLoopThread> threadList = new ArrayList<CFRunLoopThread>();
-  private final Set<Path> pathsWatching = new HashSet<Path>();
+  private final List<CarbonAPI.FSEventStreamCallback> callbackList = new ArrayList<>();
+  private final List<CFRunLoopThread> threadList = new ArrayList<>();
+  private final Set<Path> pathsWatching = new HashSet<>();
+
+  private final double latency;
+  private final int queueSize;
+
+  public MacOSXListeningWatchService(Config config) {
+    this.latency = config.latency();
+    this.queueSize = config.queueSize();
+  }
+
+  public MacOSXListeningWatchService() {
+    this(new Config() {});
+  }
 
   @Override
   public AbstractWatchKey register(WatchablePath watchable, Iterable<? extends WatchEvent.Kind<?>> events) throws IOException {
-    final MacOSXWatchKey watchKey = new MacOSXWatchKey(this, events);
+    checkOpen();
+    final MacOSXWatchKey watchKey = new MacOSXWatchKey(this, events, queueSize);
     final Path file = watchable.getFile();
     // if we are already watching a parent of this directory, do nothing.
     for (Path watchedPath: pathsWatching) {
@@ -65,7 +102,6 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     final String s = file.toFile().getAbsolutePath();
     final Pointer[] values = {CFStringRef.toCFString(s).getPointer()};
     final CFArrayRef pathsToWatch = CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);
-    final double latency = 0.5; /* Latency in seconds */
     final long kFSEventStreamEventIdSinceNow = -1; //  this is 0xFFFFFFFFFFFFFFFF
     final int kFSEventStreamCreateFlagNoDefer = 0x00000002;
     final CarbonAPI.FSEventStreamCallback callback = new MacOSXListeningCallback(watchKey, hashCodeMap);

@@ -82,8 +82,7 @@ releaseProcess := Seq[ReleaseStep](
 def commonSettings = Seq(
   fork in Test := true,
   javaOptions in Test ++= Seq(
-    "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
-    "-Dio.methvin.watchService.queueSize=16"
+    "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
   ),
   libraryDependencies ++= Seq(
     "com.novocode" % "junit-interface" % "0.11" % Test,
