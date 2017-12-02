@@ -42,7 +42,7 @@ import static java.util.Objects.requireNonNull;
 abstract class AbstractWatchService implements WatchService {
 
   private final BlockingQueue<WatchKey> queue = new LinkedBlockingQueue<>();
-  private final WatchKey poison = new AbstractWatchKey(this, null, Collections.emptySet());
+  private final WatchKey poison = new AbstractWatchKey(this, null, Collections.emptySet(), 1);
 
   private final AtomicBoolean open = new AtomicBoolean(true);
 
@@ -51,11 +51,8 @@ abstract class AbstractWatchService implements WatchService {
    * implementation just checks that the service is open and creates a key; subclasses may override
    * it to do other things as well.
    */
-  public AbstractWatchKey register(WatchablePath watchable, Iterable<? extends WatchEvent.Kind<?>> eventTypes)
-    throws IOException {
-    checkOpen();
-    return new AbstractWatchKey(this, watchable, eventTypes);
-  }
+  public abstract AbstractWatchKey register(WatchablePath watchable, Iterable<? extends WatchEvent.Kind<?>> eventTypes)
+    throws IOException;
 
   /**
    * Returns whether or not this watch service is open.

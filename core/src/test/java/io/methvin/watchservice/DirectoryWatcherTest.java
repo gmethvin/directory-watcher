@@ -43,8 +43,7 @@ public class DirectoryWatcherTest {
     directory.mkdirs();
     MacOSXListeningWatchService service = new MacOSXListeningWatchService();
     MacOSXWatchKey key = new MacOSXWatchKey(service,
-        ImmutableList.of(ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY));
-    // Note: this assumes we set io.methvin.watchService.queueSize to a small enough value
+        ImmutableList.of(ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY), 16);
     int totalEvents = 0;
     for (int i = 0; i < 10; i++) {
       Path toSignal = Paths.get(directory.toPath().toAbsolutePath().toString() + "/" + i);

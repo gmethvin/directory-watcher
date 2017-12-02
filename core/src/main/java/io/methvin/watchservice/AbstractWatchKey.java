@@ -41,10 +41,6 @@ import static java.util.Objects.requireNonNull;
  */
 class AbstractWatchKey implements WatchKey {
 
-  static final int DEFAULT_QUEUE_SIZE = 1024;
-  static final int QUEUE_SIZE = Integer.parseInt(System.getProperty(
-      "io.methvin.watchService.queueSize", "" + DEFAULT_QUEUE_SIZE));
-
   private static WatchEvent<Object> overflowEvent(int count) {
     return new Event<>(OVERFLOW, count, null);
   }
@@ -57,14 +53,17 @@ class AbstractWatchKey implements WatchKey {
   private final AtomicBoolean valid = new AtomicBoolean(true);
   private final AtomicInteger overflow = new AtomicInteger();
 
-  private final BlockingQueue<WatchEvent<?>> events = new ArrayBlockingQueue<>(QUEUE_SIZE);
+  private final BlockingQueue<WatchEvent<?>> events;
 
   public AbstractWatchKey(
     AbstractWatchService watcher,
     @Nullable Watchable watchable,
-    Iterable<? extends WatchEvent.Kind<?>> subscribedTypes) {
+    Iterable<? extends WatchEvent.Kind<?>> subscribedTypes,
+    int queueSize
+  ) {
     this.watcher = requireNonNull(watcher);
     this.watchable = watchable; // nullable for Watcher poison
+    this.events = new ArrayBlockingQueue<>(queueSize);
 
     Set<Kind<?>> types = new HashSet<Kind<?>>();
     subscribedTypes.forEach(types::add);
