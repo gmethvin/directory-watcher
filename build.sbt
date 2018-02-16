@@ -37,7 +37,7 @@ lazy val `directory-watcher-better-files` = (project in file("better-files"))
     scalaVersion := "2.12.4",
     crossPaths := true,
     libraryDependencies ++= Seq(
-      "com.github.pathikrit" %% "better-files" % "3.2.0",
+      "com.github.pathikrit" %% "better-files" % "3.4.0",
       "org.scalatest" %% "scalatest" % "3.0.4" % Test
     )
   )
