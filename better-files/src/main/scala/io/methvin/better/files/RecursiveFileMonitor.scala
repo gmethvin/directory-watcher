@@ -31,7 +31,7 @@ abstract class RecursiveFileMonitor(val root: File) extends File.Monitor {
                 override def kind = et.getWatchEventKind.asInstanceOf[WatchEvent.Kind[AnyRef]]
                 override def count = event.count
                 override def context = null
-              }, event.count)
+              })
             case _ =>
               RecursiveFileMonitor.this.onEvent(
                 et.getWatchEventKind.asInstanceOf[WatchEvent.Kind[Path]],
@@ -60,6 +60,6 @@ abstract class RecursiveFileMonitor(val root: File) extends File.Monitor {
   override def onCreate(file: File, count: Int): Unit = {}
   override def onModify(file: File, count: Int): Unit = {}
   override def onDelete(file: File, count: Int): Unit = {}
-  override def onUnknownEvent(event: WatchEvent[_], count: Int): Unit = {}
+  override def onUnknownEvent(event: WatchEvent[_]): Unit = {}
   override def onException(exception: Throwable): Unit = {}
 }
