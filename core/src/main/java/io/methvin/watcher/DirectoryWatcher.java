@@ -139,6 +139,15 @@ public class DirectoryWatcher {
             if (Files.isDirectory(childPath, NOFOLLOW_LINKS)) {
               if (!Boolean.TRUE.equals(fileTreeSupported)) {
                 registerAll(childPath);
+              } else {
+                Files.walkFileTree(childPath, new SimpleFileVisitor<Path>() {
+                  @Override
+                  public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    logger.debug("{} [{}]", EventType.CREATE, file);
+                    listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, file, count));
+                    return FileVisitResult.CONTINUE;
+                  }
+                });
               }
             } else {
               HashCode newHash = PathUtils.hash(childPath);
