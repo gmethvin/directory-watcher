@@ -26,7 +26,8 @@ lazy val `directory-watcher` = (project in file("core"))
       "org.slf4j" % "slf4j-api" % "1.7.25",
 
       "io.airlift" % "command" % "0.2" % Test,
-      "org.codehaus.plexus" % "plexus-utils" % "3.0.22" % Test
+      "org.codehaus.plexus" % "plexus-utils" % "3.0.22" % Test,
+      "commons-io" % "commons-io" % "2.6" % Test
     )
   )
 
@@ -43,7 +44,7 @@ lazy val `directory-watcher-better-files` = (project in file("better-files"))
   )
   .dependsOn(`directory-watcher`)
 
-import ReleaseTransformations._
+import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
 
 lazy val root = (project in file("."))
   .settings(
