@@ -139,12 +139,22 @@ public class DirectoryWatcher {
             if (Files.isDirectory(childPath, NOFOLLOW_LINKS)) {
               if (!Boolean.TRUE.equals(fileTreeSupported)) {
                 registerAll(childPath);
-              } else {
+              }
+              if (!isMac) {
                 Files.walkFileTree(childPath, new SimpleFileVisitor<Path>() {
                   @Override
+                  public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                    return notifyCreateEvent(dir);
+                  }
+
+                  @Override
                   public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    logger.debug("{} [{}]", EventType.CREATE, file);
-                    listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, file, count));
+                    return notifyCreateEvent(file);
+                  }
+
+                  private FileVisitResult notifyCreateEvent(Path path) throws IOException {
+                    logger.debug("{} [{}]", EventType.CREATE, path);
+                    listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
                     return FileVisitResult.CONTINUE;
                   }
                 });
