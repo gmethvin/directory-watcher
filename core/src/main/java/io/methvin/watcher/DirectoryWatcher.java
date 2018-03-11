@@ -153,8 +153,12 @@ public class DirectoryWatcher {
                   }
 
                   private FileVisitResult notifyCreateEvent(Path path) throws IOException {
-                    logger.debug("{} [{}]", EventType.CREATE, path);
-                    listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
+                    HashCode newHash = PathUtils.hash(path);
+                    if (newHash != null && !pathHashes.containsKey(path)) {
+                      logger.debug("{} [{}]", EventType.CREATE, path);
+                      listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
+                      pathHashes.put(path, newHash);
+                    }
                     return FileVisitResult.CONTINUE;
                   }
                 });
