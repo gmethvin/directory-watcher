@@ -163,16 +163,17 @@ public class DirectoryWatcher {
                   }
                 });
               }
-            } else {
-              HashCode newHash = PathUtils.hash(childPath);
-              // newHash can be null if the file was deleted before we had a chance to hash it
-              if (newHash != null) {
-                pathHashes.put(childPath, newHash);
-              } else {
-                logger.debug("Failed to hash created file [{}]. It may have been deleted.", childPath);
-              }
             }
-            listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, childPath, count));
+            if (!pathHashes.containsKey(childPath)) {
+              listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, childPath, count));
+            }
+            HashCode newHash = PathUtils.hash(childPath);
+            // newHash can be null if the file was deleted before we had a chance to hash it
+            if (newHash != null) {
+              pathHashes.put(childPath, newHash);
+            } else {
+              logger.debug("Failed to hash created file [{}]. It may have been deleted.", childPath);
+            }
           } else if (kind == ENTRY_MODIFY) {
             // Note that existingHash may be null due to the file being created before we start listening
             // It's important we don't discard the event in this case
