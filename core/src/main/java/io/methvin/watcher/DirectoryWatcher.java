@@ -140,6 +140,8 @@ public class DirectoryWatcher {
               if (!Boolean.TRUE.equals(fileTreeSupported)) {
                 registerAll(childPath);
               }
+              // Our custom Mac service sends subdirectory changes but the Windows/Linux do not.
+              // Walk the file tree to make sure we send create events for any files that were created.
               if (!isMac) {
                 Files.walkFileTree(childPath, new SimpleFileVisitor<Path>() {
                   @Override
@@ -158,7 +160,6 @@ public class DirectoryWatcher {
               }
             }
             notifyCreateEvent(childPath, count);
-
           } else if (kind == ENTRY_MODIFY) {
             // Note that existingHash may be null due to the file being created before we start listening
             // It's important we don't discard the event in this case
@@ -245,12 +246,15 @@ public class DirectoryWatcher {
 
   private void notifyCreateEvent(Path path, int count) throws IOException {
     HashCode newHash = PathUtils.hash(path);
-    if (newHash != null && !pathHashes.containsKey(path)) {
+    if (newHash == null) {
+      logger.debug("Failed to hash created file [{}]. It may have been deleted.", path);
+      return;
+    }
+    // Notify for the file create if not already notified
+    if (!pathHashes.containsKey(path)) {
       logger.debug("{} [{}]", EventType.CREATE, path);
       listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
       pathHashes.put(path, newHash);
-    } else if(newHash == null){
-      logger.debug("Failed to hash created file [{}]. It may have been deleted.", path);
     }
   }
 
