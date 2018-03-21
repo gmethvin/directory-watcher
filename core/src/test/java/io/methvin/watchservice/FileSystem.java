@@ -25,7 +25,7 @@ public class FileSystem {
   }
 
   public FileSystem create(String path) {
-    return create(path, path);
+    return create(path, "");
   }
 
   public FileSystem create(String path, String content) {
