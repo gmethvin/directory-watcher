@@ -140,16 +140,25 @@ public class DirectoryWatcher {
               if (!Boolean.TRUE.equals(fileTreeSupported)) {
                 registerAll(childPath);
               }
-            } else {
-              HashCode newHash = PathUtils.hash(childPath);
-              // newHash can be null if the file was deleted before we had a chance to hash it
-              if (newHash != null) {
-                pathHashes.put(childPath, newHash);
-              } else {
-                logger.debug("Failed to hash created file [{}]. It may have been deleted.", childPath);
+              if (!isMac) {
+                Files.walkFileTree(childPath, new SimpleFileVisitor<Path>() {
+                  @Override
+                  public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                    notifyCreateEvent(dir, count);
+                    return FileVisitResult.CONTINUE;
+                  }
+
+                  @Override
+                  public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    notifyCreateEvent(file, count);
+                    return FileVisitResult.CONTINUE;
+                  }
+
+                });
               }
             }
-            listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, childPath, count));
+            notifyCreateEvent(childPath, count);
+
           } else if (kind == ENTRY_MODIFY) {
             // Note that existingHash may be null due to the file being created before we start listening
             // It's important we don't discard the event in this case
@@ -232,6 +241,17 @@ public class DirectoryWatcher {
     WatchEvent.Kind<?>[] kinds = new WatchEvent.Kind<?>[] {ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY};
     WatchKey watchKey = watchable.register(watchService, kinds, modifiers);
     keyRoots.put(watchKey, directory);
+  }
+
+  private void notifyCreateEvent(Path path, int count) throws IOException {
+    HashCode newHash = PathUtils.hash(path);
+    if (newHash != null && !pathHashes.containsKey(path)) {
+      logger.debug("{} [{}]", EventType.CREATE, path);
+      listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
+      pathHashes.put(path, newHash);
+    } else if(newHash == null){
+      logger.debug("Failed to hash created file [{}]. It may have been deleted.", path);
+    }
   }
 
 }
