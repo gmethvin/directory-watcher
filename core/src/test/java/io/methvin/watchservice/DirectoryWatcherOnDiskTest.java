@@ -1,5 +1,6 @@
 package io.methvin.watchservice;
 
+import com.typesafe.config.ConfigFactory;
 import io.methvin.watcher.DirectoryChangeEvent;
 import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
@@ -8,17 +9,26 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.junit.Assert.fail;
 
 public class DirectoryWatcherOnDiskTest {
 
@@ -31,6 +41,8 @@ public class DirectoryWatcherOnDiskTest {
     this.tmpDir = Files.createTempDirectory(null);
     this.recorder = new EventRecorder();
     this.watcher = DirectoryWatcher.create(this.tmpDir, this.recorder);
+    System.setProperty("io.methvin.prevent-file-hashing", "true");
+    ConfigFactory.invalidateCaches();
   }
 
   @After
@@ -108,7 +120,84 @@ public class DirectoryWatcherOnDiskTest {
         FileUtils.deleteDirectory(newParent.toFile());
       }
     }
+  }
 
+  @Test
+  public void emitCreateEventWhenFileLocked() throws IOException, ExecutionException, InterruptedException {
+    final CompletableFuture future = this.watcher.watchAsync();
+    final Path child = Files.createTempFile(tmpDir, "child-", ".dat");
+    FileChannel channel = null;
+    FileLock lock = null;
+    try {
+
+      File file = child.toFile();
+      channel = new RandomAccessFile(file, "rw").getChannel();
+      lock = channel.lock();
+
+      try {
+        future.get(5, TimeUnit.SECONDS);
+      } catch (TimeoutException e) {
+        // Expected exception.
+      }
+
+      assertTrue(
+          "Create event for the child file was notified",
+          this.recorder.events.stream().anyMatch(
+              e -> e.eventType() == DirectoryChangeEvent.EventType.CREATE && e.path().getFileName().equals(child.getFileName())));
+
+    } finally {
+      if(lock != null && channel != null && channel.isOpen()){
+        lock.release();
+        channel.close();
+      }
+    }
+  }
+
+  @Test
+  public void emitModifyEventWhenFileLocked() throws IOException, ExecutionException, InterruptedException {
+    final CompletableFuture future = this.watcher.watchAsync();
+    final Path child = Files.createTempFile(tmpDir, "child-", ".dat");
+//    Files.createFile(child);
+    FileChannel channel = null;
+    FileLock lock = null;
+    try {
+
+      File file = child.toFile();
+      channel = new RandomAccessFile(file, "rw").getChannel();
+      lock = channel.lock();
+
+      if(lock != null){
+        ByteBuffer bytes = ByteBuffer.allocate(8);
+        bytes.putLong(System.currentTimeMillis() + 10000).flip();
+        channel.write(bytes);
+        channel.force(false);
+      } else {
+        fail("No lock found");
+      }
+
+      try {
+        future.get(5, TimeUnit.SECONDS);
+      } catch (TimeoutException e) {
+        // Expected exception.
+      }
+
+      assertTrue(
+          "Create event for the child file was notified",
+          this.recorder.events.stream().anyMatch(
+              e -> e.eventType() == DirectoryChangeEvent.EventType.CREATE && e.path().getFileName().equals(child.getFileName())));
+      assertTrue(
+          "Modify event for the child file was notified",
+          this.recorder.events.stream().anyMatch(
+              e -> e.eventType() == DirectoryChangeEvent.EventType.MODIFY && e.path().getFileName().equals(child.getFileName())));
+//      lock.release();
+//      channel.close();
+//      Files.delete(child);
+    } finally {
+      if(lock != null && channel != null && channel.isOpen()){
+        lock.release();
+        channel.close();
+      }
+    }
   }
 
   class EventRecorder implements DirectoryChangeListener {

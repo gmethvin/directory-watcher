@@ -30,8 +30,12 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.common.io.Files;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PathUtils {
+
+    static final Logger logger = LoggerFactory.getLogger(PathUtils.class);
 
   private final static HashFunction HASH_FUNCTION = Hashing.goodFastHash(64);
 

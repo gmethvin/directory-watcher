@@ -70,6 +70,20 @@ public class DirectoryWatchingUtility {
 }
 ```
 
+## Configuration
+
+By default, DirectoryWatcher will try to prevent duplicate events (e.g. Windows will emit duplicate modify events when file is changed). This is done by creating hash for every file encountered and keeping that hash in memory.
+This might result in slower performance, because library has to calculate the hash of the entire file. In addition, some events are not emited, because file was locked by another process when library tried to calculate the hash. 
+
+To avoid performance hit (and possible event loss), you can add `application.conf` file in your resource folder and set property `io.methvin.prevent-file-hashing` to `true`.
+```
+io {
+  methvin {
+    prevent-file-hashing=true
+  }
+}
+```
+
 ## better-files integration (Scala)
 
 While the core `directory-watcher` library is Java only, we also provide `better-files` integration, which is the recommended API for Scala 2.12 users. To add the library:

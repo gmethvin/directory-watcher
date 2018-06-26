@@ -34,6 +34,8 @@ import java.util.concurrent.ForkJoinPool;
 
 import com.google.common.hash.HashCode;
 import com.sun.nio.file.ExtendedWatchEventModifier;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import io.methvin.watcher.DirectoryChangeEvent.EventType;
 import io.methvin.watchservice.MacOSXListeningWatchService;
 import io.methvin.watchservice.WatchablePath;
@@ -59,6 +61,7 @@ public class DirectoryWatcher {
 
   // this is set to true/false depending on whether recursive watching is supported natively
   private Boolean fileTreeSupported = null;
+  private Settings settings;
 
   public static DirectoryWatcher create(Path path, DirectoryChangeListener listener) throws IOException {
     return create(Collections.singletonList(path), listener);
@@ -81,6 +84,8 @@ public class DirectoryWatcher {
     for (Path path : paths) {
       registerAll(path);
     }
+
+    settings = new Settings(ConfigFactory.load());
   }
 
   /**
@@ -161,19 +166,23 @@ public class DirectoryWatcher {
             }
             notifyCreateEvent(childPath, count);
           } else if (kind == ENTRY_MODIFY) {
-            // Note that existingHash may be null due to the file being created before we start listening
-            // It's important we don't discard the event in this case
-            HashCode existingHash = pathHashes.get(childPath);
+            if(!settings.isPreventFileHashing() || Files.isDirectory(childPath)) {
+              // Note that existingHash may be null due to the file being created before we start listening
+              // It's important we don't discard the event in this case
+              HashCode existingHash = pathHashes.get(childPath);
 
-            // newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession
-            // in this case the MODIFY event can be safely ignored
-            HashCode newHash = PathUtils.hash(childPath);
+              // newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession
+              // in this case the MODIFY event can be safely ignored
+              HashCode newHash = PathUtils.hash(childPath);
 
-            if (newHash != null && !newHash.equals(existingHash)) {
-              pathHashes.put(childPath, newHash);
+              if (newHash != null && !newHash.equals(existingHash)) {
+                pathHashes.put(childPath, newHash);
+                listener.onEvent(new DirectoryChangeEvent(EventType.MODIFY, childPath, count));
+              } else if (newHash == null) {
+                logger.debug("Failed to hash modified file [{}]. It may have been deleted.", childPath);
+              }
+            } else {
               listener.onEvent(new DirectoryChangeEvent(EventType.MODIFY, childPath, count));
-            } else if (newHash == null) {
-              logger.debug("Failed to hash modified file [{}]. It may have been deleted.", childPath);
             }
           } else if (kind == ENTRY_DELETE) {
             pathHashes.remove(childPath);
@@ -245,16 +254,21 @@ public class DirectoryWatcher {
   }
 
   private void notifyCreateEvent(Path path, int count) throws IOException {
-    HashCode newHash = PathUtils.hash(path);
-    if (newHash == null) {
-      logger.debug("Failed to hash created file [{}]. It may have been deleted.", path);
-      return;
-    }
-    // Notify for the file create if not already notified
-    if (!pathHashes.containsKey(path)) {
+    if(settings.isPreventFileHashing() && Files.isRegularFile(path)) {
       logger.debug("{} [{}]", EventType.CREATE, path);
       listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
-      pathHashes.put(path, newHash);
+    } else {
+      HashCode newHash = PathUtils.hash(path);
+      if (newHash == null) {
+        logger.debug("Failed to hash created file [{}]. It may have been deleted.", path);
+        return;
+      }
+      // Notify for the file create if not already notified
+      if (!pathHashes.containsKey(path)) {
+        logger.debug("{} [{}]", EventType.CREATE, path);
+        listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
+        pathHashes.put(path, newHash);
+      }
     }
   }
 
