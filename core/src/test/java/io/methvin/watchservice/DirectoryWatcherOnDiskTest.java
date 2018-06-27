@@ -1,6 +1,5 @@
 package io.methvin.watchservice;
 
-import com.typesafe.config.ConfigFactory;
 import io.methvin.watcher.DirectoryChangeEvent;
 import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
@@ -10,25 +9,20 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
-import java.nio.channels.OverlappingFileLockException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.fail;
 
 public class DirectoryWatcherOnDiskTest {
 
@@ -40,9 +34,7 @@ public class DirectoryWatcherOnDiskTest {
   public void setUp() throws IOException {
     this.tmpDir = Files.createTempDirectory(null);
     this.recorder = new EventRecorder();
-    this.watcher = DirectoryWatcher.create(this.tmpDir, this.recorder);
-    System.setProperty("io.methvin.prevent-file-hashing", "true");
-    ConfigFactory.invalidateCaches();
+    this.watcher = DirectoryWatcher.create(this.tmpDir, this.recorder, false);
   }
 
   @After

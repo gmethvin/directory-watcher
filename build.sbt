@@ -24,7 +24,6 @@ lazy val `directory-watcher` = (project in file("core"))
       "net.java.dev.jna" % "jna" % "4.2.1",
       "com.google.guava" % "guava" % "23.0",
       "org.slf4j" % "slf4j-api" % "1.7.25",
-      "com.typesafe" % "config" % "1.3.2",
 
       "io.airlift" % "command" % "0.2" % Test,
       "org.codehaus.plexus" % "plexus-utils" % "3.0.22" % Test,

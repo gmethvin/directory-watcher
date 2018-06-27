@@ -34,8 +34,6 @@ import java.util.concurrent.ForkJoinPool;
 
 import com.google.common.hash.HashCode;
 import com.sun.nio.file.ExtendedWatchEventModifier;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import io.methvin.watcher.DirectoryChangeEvent.EventType;
 import io.methvin.watchservice.MacOSXListeningWatchService;
 import io.methvin.watchservice.WatchablePath;
@@ -61,16 +59,24 @@ public class DirectoryWatcher {
 
   // this is set to true/false depending on whether recursive watching is supported natively
   private Boolean fileTreeSupported = null;
-  private Settings settings;
+  private Boolean enableFileHashing = true;
 
   public static DirectoryWatcher create(Path path, DirectoryChangeListener listener) throws IOException {
-    return create(Collections.singletonList(path), listener);
+    return create(Collections.singletonList(path), listener, Boolean.TRUE);
+  }
+
+  public static DirectoryWatcher create(Path path, DirectoryChangeListener listener, Boolean enableFileHashing) throws IOException {
+    return create(Collections.singletonList(path), listener, enableFileHashing);
   }
 
   public static DirectoryWatcher create(List<Path> paths, DirectoryChangeListener listener) throws IOException {
+    return create(paths, listener, Boolean.TRUE);
+  }
+
+  public static DirectoryWatcher create(List<Path> paths, DirectoryChangeListener listener, Boolean enableFileHashing) throws IOException {
     boolean isMac = System.getProperty("os.name").toLowerCase().contains("mac");
     WatchService ws = isMac ? new MacOSXListeningWatchService() : FileSystems.getDefault().newWatchService();
-    return new DirectoryWatcher(paths, listener, ws);
+    return new DirectoryWatcher(paths, listener, ws, enableFileHashing);
   }
 
   public DirectoryWatcher(List<Path> paths, DirectoryChangeListener listener, WatchService watchService) throws IOException {
@@ -80,12 +86,27 @@ public class DirectoryWatcher {
     this.isMac = watchService instanceof MacOSXListeningWatchService;
     this.pathHashes = PathUtils.createHashCodeMap(paths);
     this.keyRoots = PathUtils.createKeyRootsMap();
+    this.enableFileHashing = Boolean.TRUE;
 
     for (Path path : paths) {
       registerAll(path);
     }
 
-    settings = new Settings(ConfigFactory.load());
+  }
+
+  public DirectoryWatcher(List<Path> paths, DirectoryChangeListener listener, WatchService watchService, Boolean enableFileHashing) throws IOException {
+    this.paths = paths;
+    this.listener = listener;
+    this.watchService = watchService;
+    this.isMac = watchService instanceof MacOSXListeningWatchService;
+    this.pathHashes = PathUtils.createHashCodeMap(paths);
+    this.keyRoots = PathUtils.createKeyRootsMap();
+    this.enableFileHashing = enableFileHashing;
+
+    for (Path path : paths) {
+      registerAll(path);
+    }
+
   }
 
   /**
@@ -166,7 +187,7 @@ public class DirectoryWatcher {
             }
             notifyCreateEvent(childPath, count);
           } else if (kind == ENTRY_MODIFY) {
-            if(!settings.isPreventFileHashing() || Files.isDirectory(childPath)) {
+            if(enableFileHashing || Files.isDirectory(childPath)) {
               // Note that existingHash may be null due to the file being created before we start listening
               // It's important we don't discard the event in this case
               HashCode existingHash = pathHashes.get(childPath);
@@ -254,10 +275,7 @@ public class DirectoryWatcher {
   }
 
   private void notifyCreateEvent(Path path, int count) throws IOException {
-    if(settings.isPreventFileHashing() && Files.isRegularFile(path)) {
-      logger.debug("{} [{}]", EventType.CREATE, path);
-      listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
-    } else {
+    if(enableFileHashing || Files.isDirectory(path)){
       HashCode newHash = PathUtils.hash(path);
       if (newHash == null) {
         logger.debug("Failed to hash created file [{}]. It may have been deleted.", path);
@@ -269,6 +287,9 @@ public class DirectoryWatcher {
         listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
         pathHashes.put(path, newHash);
       }
+    } else {
+      logger.debug("{} [{}]", EventType.CREATE, path);
+      listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
     }
   }
 
