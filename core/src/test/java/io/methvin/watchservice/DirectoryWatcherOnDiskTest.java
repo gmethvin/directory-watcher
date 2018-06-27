@@ -153,53 +153,6 @@ public class DirectoryWatcherOnDiskTest {
     }
   }
 
-  @Test
-  public void emitModifyEventWhenFileLocked() throws IOException, ExecutionException, InterruptedException {
-    final CompletableFuture future = this.watcher.watchAsync();
-    final Path child = Files.createTempFile(tmpDir, "child-", ".dat");
-//    Files.createFile(child);
-    FileChannel channel = null;
-    FileLock lock = null;
-    try {
-
-      File file = child.toFile();
-      channel = new RandomAccessFile(file, "rw").getChannel();
-      lock = channel.lock();
-
-      if(lock != null){
-        ByteBuffer bytes = ByteBuffer.allocate(8);
-        bytes.putLong(System.currentTimeMillis() + 10000).flip();
-        channel.write(bytes);
-        channel.force(false);
-      } else {
-        fail("No lock found");
-      }
-
-      try {
-        future.get(5, TimeUnit.SECONDS);
-      } catch (TimeoutException e) {
-        // Expected exception.
-      }
-
-      assertTrue(
-          "Create event for the child file was notified",
-          this.recorder.events.stream().anyMatch(
-              e -> e.eventType() == DirectoryChangeEvent.EventType.CREATE && e.path().getFileName().equals(child.getFileName())));
-      assertTrue(
-          "Modify event for the child file was notified",
-          this.recorder.events.stream().anyMatch(
-              e -> e.eventType() == DirectoryChangeEvent.EventType.MODIFY && e.path().getFileName().equals(child.getFileName())));
-//      lock.release();
-//      channel.close();
-//      Files.delete(child);
-    } finally {
-      if(lock != null && channel != null && channel.isOpen()){
-        lock.release();
-        channel.close();
-      }
-    }
-  }
-
   class EventRecorder implements DirectoryChangeListener {
 
     private List<DirectoryChangeEvent> events = new ArrayList<>();

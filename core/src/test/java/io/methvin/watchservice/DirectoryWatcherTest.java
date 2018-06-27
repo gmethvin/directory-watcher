@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
+import com.typesafe.config.ConfigFactory;
 import io.methvin.watcher.DirectoryChangeEvent;
 import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
@@ -149,7 +150,8 @@ public class DirectoryWatcherTest {
 
     TestDirectoryChangeListener listener = new TestDirectoryChangeListener(directory, actions);
     DirectoryWatcher watcher = new DirectoryWatcher(Collections.singletonList(directory), listener, watchService);
-
+    System.setProperty("io.methvin.prevent-file-hashing", "false");
+    ConfigFactory.invalidateCaches();
     // Fire up the filesystem watcher
     CompletableFuture<Void> future = watcher.watchAsync();
     // Play our filesystem events
