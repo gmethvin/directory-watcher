@@ -16,6 +16,7 @@ import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -34,7 +35,7 @@ public class DirectoryWatcherOnDiskTest {
   public void setUp() throws IOException {
     this.tmpDir = Files.createTempDirectory(null);
     this.recorder = new EventRecorder();
-    this.watcher = DirectoryWatcher.create(this.tmpDir, this.recorder, false);
+    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, false);
   }
 
   @After
