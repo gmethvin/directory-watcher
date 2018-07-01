@@ -148,7 +148,7 @@ public class DirectoryWatcherTest {
     List<FileSystemAction> actions = fileSystem.actions();
 
     TestDirectoryChangeListener listener = new TestDirectoryChangeListener(directory, actions);
-    DirectoryWatcher watcher = new DirectoryWatcher(Collections.singletonList(directory), listener, watchService);
+    DirectoryWatcher watcher = new DirectoryWatcher(Collections.singletonList(directory), listener, watchService, Boolean.TRUE);
     // Fire up the filesystem watcher
     CompletableFuture<Void> future = watcher.watchAsync();
     // Play our filesystem events
