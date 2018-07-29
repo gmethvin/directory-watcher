@@ -127,7 +127,11 @@ public class DirectoryWatcherOnDiskTest {
       channel = new RandomAccessFile(file, "rw").getChannel();
       lock = channel.lock();
 
-      future.get(5, TimeUnit.SECONDS);
+      try {
+        future.get(5, TimeUnit.SECONDS);
+      } catch (TimeoutException e) {
+        // Expected exception.
+      }
 
       assertTrue(
           "Create event for the child file was notified",
