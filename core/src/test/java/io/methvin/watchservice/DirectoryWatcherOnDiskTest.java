@@ -18,11 +18,13 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertTrue;
 
 public class DirectoryWatcherOnDiskTest {
@@ -35,7 +37,6 @@ public class DirectoryWatcherOnDiskTest {
   public void setUp() throws IOException {
     this.tmpDir = Files.createTempDirectory(null);
     this.recorder = new EventRecorder();
-    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, false);
   }
 
   @After
@@ -45,8 +46,18 @@ public class DirectoryWatcherOnDiskTest {
   }
 
   @Test
-  public void copySubDirectoryFromOutside() throws IOException, ExecutionException, InterruptedException {
+  public void copySubDirectoryFromOutsideNoHashing() throws IOException, ExecutionException, InterruptedException {
+    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, false);
+    copySubDirectoryFromOutside();
+  }
 
+  @Test
+  public void copySubDirectoryFromOutsideWithHashing() throws IOException, ExecutionException, InterruptedException {
+    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, true);
+    copySubDirectoryFromOutside();
+  }
+
+  private void copySubDirectoryFromOutside() throws IOException, InterruptedException, ExecutionException {
     final CompletableFuture future = this.watcher.watchAsync();
     final Path parent = Files.createTempDirectory("parent-");
     final Path child = Files.createTempFile(parent, "child-", ".dat");
@@ -74,12 +85,21 @@ public class DirectoryWatcherOnDiskTest {
         FileUtils.deleteDirectory(parent.toFile());
       }
     }
-
   }
 
   @Test
-  public void moveSubDirectory() throws IOException, ExecutionException, InterruptedException {
+  public void moveSubDirectoryNoHashing() throws IOException, ExecutionException, InterruptedException {
+    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, false);
+    moveSubDirectory();
+  }
 
+  @Test
+  public void moveSubDirectoryWithHashing() throws IOException, ExecutionException, InterruptedException {
+    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, true);
+    moveSubDirectory();
+  }
+
+  private void moveSubDirectory() throws IOException, InterruptedException, ExecutionException {
     final CompletableFuture future = this.watcher.watchAsync();
     final Path parent = Files.createTempDirectory(this.tmpDir, "parent-");
     final Path child = Files.createTempFile(parent, "child-", ".dat");
@@ -116,9 +136,12 @@ public class DirectoryWatcherOnDiskTest {
   }
 
   @Test
-  public void emitCreateEventWhenFileLocked() throws IOException, ExecutionException, InterruptedException, TimeoutException {
+  public void emitCreateEventWhenFileLockedNoHashing() throws IOException, ExecutionException, InterruptedException {
+    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, false);
     final CompletableFuture future = this.watcher.watchAsync();
-    final Path child = Files.createTempFile(tmpDir, "child-", ".dat");
+    Random random = new Random();
+    int i = random.nextInt(100_000);
+    final Path child = tmpDir.resolve("child-" + i + ".dat");
     FileChannel channel = null;
     FileLock lock = null;
     try {
@@ -133,10 +156,43 @@ public class DirectoryWatcherOnDiskTest {
         // Expected exception.
       }
 
+      assertEquals("Create event for the child file was notified", 1, this.recorder.events.size());
+
       assertTrue(
           "Create event for the child file was notified",
           this.recorder.events.stream().anyMatch(
               e -> e.eventType() == DirectoryChangeEvent.EventType.CREATE && e.path().getFileName().equals(child.getFileName())));
+
+    } finally {
+      if (lock != null && channel != null && channel.isOpen()) {
+        lock.release();
+        channel.close();
+      }
+    }
+  }
+
+  @Test
+  public void doNotEmitCreateEventWhenFileLockedWithHashing() throws IOException, ExecutionException, InterruptedException {
+    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, true);
+    final CompletableFuture future = this.watcher.watchAsync();
+    Random random = new Random();
+    int i = random.nextInt(100_000);
+    final Path child = tmpDir.resolve("child-" + i + ".dat");
+    FileChannel channel = null;
+    FileLock lock = null;
+    try {
+
+      File file = child.toFile();
+      channel = new RandomAccessFile(file, "rw").getChannel();
+      lock = channel.lock();
+
+      try {
+        future.get(5, TimeUnit.SECONDS);
+      } catch (TimeoutException e) {
+        // Expected exception.
+      }
+
+      assertEquals("No event for the file creation expected", 0, this.recorder.events.size());
 
     } finally {
       if (lock != null && channel != null && channel.isOpen()) {
