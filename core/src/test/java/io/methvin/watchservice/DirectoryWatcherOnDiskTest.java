@@ -116,7 +116,7 @@ public class DirectoryWatcherOnDiskTest {
   }
 
   @Test
-  public void emitCreateEventWhenFileLocked() throws IOException, ExecutionException, InterruptedException {
+  public void emitCreateEventWhenFileLocked() throws IOException, ExecutionException, InterruptedException, TimeoutException {
     final CompletableFuture future = this.watcher.watchAsync();
     final Path child = Files.createTempFile(tmpDir, "child-", ".dat");
     FileChannel channel = null;
@@ -127,11 +127,7 @@ public class DirectoryWatcherOnDiskTest {
       channel = new RandomAccessFile(file, "rw").getChannel();
       lock = channel.lock();
 
-      try {
-        future.get(5, TimeUnit.SECONDS);
-      } catch (TimeoutException e) {
-        // Expected exception.
-      }
+      future.get(5, TimeUnit.SECONDS);
 
       assertTrue(
           "Create event for the child file was notified",
@@ -139,7 +135,7 @@ public class DirectoryWatcherOnDiskTest {
               e -> e.eventType() == DirectoryChangeEvent.EventType.CREATE && e.path().getFileName().equals(child.getFileName())));
 
     } finally {
-      if(lock != null && channel != null && channel.isOpen()){
+      if (lock != null && channel != null && channel.isOpen()) {
         lock.release();
         channel.close();
       }

@@ -59,23 +59,23 @@ public class DirectoryWatcher {
 
   // this is set to true/false depending on whether recursive watching is supported natively
   private Boolean fileTreeSupported = null;
-  private boolean enableFileHashing = true;
+  private boolean enableFileHashing;
 
   public static DirectoryWatcher create(Path path, DirectoryChangeListener listener) throws IOException {
-    return create(Collections.singletonList(path), listener, Boolean.TRUE);
+    return create(Collections.singletonList(path), listener, true);
   }
 
   public static DirectoryWatcher create(List<Path> paths, DirectoryChangeListener listener) throws IOException {
-    return create(paths, listener, Boolean.TRUE);
+    return create(paths, listener, true);
   }
 
-  public static DirectoryWatcher create(List<Path> paths, DirectoryChangeListener listener, Boolean enableFileHashing) throws IOException {
+  public static DirectoryWatcher create(List<Path> paths, DirectoryChangeListener listener, boolean enableFileHashing) throws IOException {
     boolean isMac = System.getProperty("os.name").toLowerCase().contains("mac");
     WatchService ws = isMac ? new MacOSXListeningWatchService() : FileSystems.getDefault().newWatchService();
     return new DirectoryWatcher(paths, listener, ws, enableFileHashing);
   }
 
-  public DirectoryWatcher(List<Path> paths, DirectoryChangeListener listener, WatchService watchService, Boolean enableFileHashing) throws IOException {
+  public DirectoryWatcher(List<Path> paths, DirectoryChangeListener listener, WatchService watchService, boolean enableFileHashing) throws IOException {
     this.paths = paths;
     this.listener = listener;
     this.watchService = watchService;
@@ -87,7 +87,6 @@ public class DirectoryWatcher {
     for (Path path : paths) {
       registerAll(path);
     }
-
   }
 
   /**
@@ -168,7 +167,7 @@ public class DirectoryWatcher {
             }
             notifyCreateEvent(childPath, count);
           } else if (kind == ENTRY_MODIFY) {
-            if(enableFileHashing || Files.isDirectory(childPath)) {
+            if (enableFileHashing || Files.isDirectory(childPath)) {
               // Note that existingHash may be null due to the file being created before we start listening
               // It's important we don't discard the event in this case
               HashCode existingHash = pathHashes.get(childPath);
@@ -256,7 +255,7 @@ public class DirectoryWatcher {
   }
 
   private void notifyCreateEvent(Path path, int count) throws IOException {
-    if(enableFileHashing || Files.isDirectory(path)) {
+    if (enableFileHashing || Files.isDirectory(path)) {
       HashCode newHash = PathUtils.hash(path);
       if (newHash == null) {
         logger.debug("Failed to hash created file [{}]. It may have been deleted.", path);
