@@ -42,7 +42,6 @@ public class DirectoryWatcherOnDiskTest {
 
   @After
   public void tearDown() throws IOException {
-    this.watcher.close();
     FileUtils.deleteDirectory(this.tmpDir.toFile());
   }
 
@@ -50,12 +49,14 @@ public class DirectoryWatcherOnDiskTest {
   public void copySubDirectoryFromOutsideNoHashing() throws IOException, ExecutionException, InterruptedException {
     this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, false);
     copySubDirectoryFromOutside();
+    this.watcher.close();
   }
 
   @Test
   public void copySubDirectoryFromOutsideWithHashing() throws IOException, ExecutionException, InterruptedException {
     this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, true);
     copySubDirectoryFromOutside();
+    this.watcher.close();
   }
 
   private void copySubDirectoryFromOutside() throws IOException, InterruptedException, ExecutionException {
@@ -92,12 +93,14 @@ public class DirectoryWatcherOnDiskTest {
   public void moveSubDirectoryNoHashing() throws IOException, ExecutionException, InterruptedException {
     this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, false);
     moveSubDirectory();
+    this.watcher.close();
   }
 
   @Test
   public void moveSubDirectoryWithHashing() throws IOException, ExecutionException, InterruptedException {
     this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, true);
     moveSubDirectory();
+    this.watcher.close();
   }
 
   private void moveSubDirectory() throws IOException, InterruptedException, ExecutionException {
@@ -171,6 +174,9 @@ public class DirectoryWatcherOnDiskTest {
         lock.release();
         channel.close();
       }
+      if (this.watcher != null) {
+        this.watcher.close();
+      }
     }
   }
 
@@ -202,6 +208,9 @@ public class DirectoryWatcherOnDiskTest {
       if (lock != null && channel != null && channel.isOpen()) {
         lock.release();
         channel.close();
+      }
+      if (this.watcher != null) {
+        this.watcher.close();
       }
     }
   }
