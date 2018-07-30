@@ -5,6 +5,7 @@ import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -137,6 +138,8 @@ public class DirectoryWatcherOnDiskTest {
 
   @Test
   public void emitCreateEventWhenFileLockedNoHashing() throws IOException, ExecutionException, InterruptedException {
+    Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("win"));
+
     this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, false);
     final CompletableFuture future = this.watcher.watchAsync();
     Random random = new Random();
@@ -173,6 +176,7 @@ public class DirectoryWatcherOnDiskTest {
 
   @Test
   public void doNotEmitCreateEventWhenFileLockedWithHashing() throws IOException, ExecutionException, InterruptedException {
+    Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("win"));
     this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, true);
     final CompletableFuture future = this.watcher.watchAsync();
     Random random = new Random();
