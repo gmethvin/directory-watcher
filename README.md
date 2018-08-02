@@ -70,6 +70,16 @@ public class DirectoryWatchingUtility {
 }
 ```
 
+## Configuration
+
+By default, DirectoryWatcher will try to prevent duplicate events (e.g. Windows will emit duplicate modify events when a file is changed). This is done by creating a hash for every file encountered and keeping that hash in memory.
+This might result in slower performance, because the library has to calculate the hash of the entire file. In addition, some events may not be emitted if DirectoryWatcher encounters a file that is locked by another process while computing the hash.
+
+To disable hashing, you can set `enableFileHashing` parameter to `false` when calling `DirectoryWatcher.create`
+```
+DirectoryWatcher watcher = DirectoryWatcher.create(path, listener, false);
+```
+
 ## better-files integration (Scala)
 
 While the core `directory-watcher` library is Java only, we also provide `better-files` integration, which is the recommended API for Scala 2.12 users. To add the library:

@@ -5,19 +5,27 @@ import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertTrue;
 
 public class DirectoryWatcherOnDiskTest {
@@ -30,18 +38,28 @@ public class DirectoryWatcherOnDiskTest {
   public void setUp() throws IOException {
     this.tmpDir = Files.createTempDirectory(null);
     this.recorder = new EventRecorder();
-    this.watcher = DirectoryWatcher.create(this.tmpDir, this.recorder);
   }
 
   @After
   public void tearDown() throws IOException {
-    this.watcher.close();
     FileUtils.deleteDirectory(this.tmpDir.toFile());
   }
 
   @Test
-  public void copySubDirectoryFromOutside() throws IOException, ExecutionException, InterruptedException {
+  public void copySubDirectoryFromOutsideNoHashing() throws IOException, ExecutionException, InterruptedException {
+    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, false);
+    copySubDirectoryFromOutside();
+    this.watcher.close();
+  }
 
+  @Test
+  public void copySubDirectoryFromOutsideWithHashing() throws IOException, ExecutionException, InterruptedException {
+    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, true);
+    copySubDirectoryFromOutside();
+    this.watcher.close();
+  }
+
+  private void copySubDirectoryFromOutside() throws IOException, InterruptedException, ExecutionException {
     final CompletableFuture future = this.watcher.watchAsync();
     final Path parent = Files.createTempDirectory("parent-");
     final Path child = Files.createTempFile(parent, "child-", ".dat");
@@ -69,12 +87,23 @@ public class DirectoryWatcherOnDiskTest {
         FileUtils.deleteDirectory(parent.toFile());
       }
     }
-
   }
 
   @Test
-  public void moveSubDirectory() throws IOException, ExecutionException, InterruptedException {
+  public void moveSubDirectoryNoHashing() throws IOException, ExecutionException, InterruptedException {
+    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, false);
+    moveSubDirectory();
+    this.watcher.close();
+  }
 
+  @Test
+  public void moveSubDirectoryWithHashing() throws IOException, ExecutionException, InterruptedException {
+    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, true);
+    moveSubDirectory();
+    this.watcher.close();
+  }
+
+  private void moveSubDirectory() throws IOException, InterruptedException, ExecutionException {
     final CompletableFuture future = this.watcher.watchAsync();
     final Path parent = Files.createTempDirectory(this.tmpDir, "parent-");
     final Path child = Files.createTempFile(parent, "child-", ".dat");
@@ -108,7 +137,82 @@ public class DirectoryWatcherOnDiskTest {
         FileUtils.deleteDirectory(newParent.toFile());
       }
     }
+  }
 
+  @Test
+  public void emitCreateEventWhenFileLockedNoHashing() throws IOException, ExecutionException, InterruptedException {
+    Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("win"));
+
+    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, false);
+    final CompletableFuture future = this.watcher.watchAsync();
+    Random random = new Random();
+    int i = random.nextInt(100_000);
+    final Path child = tmpDir.resolve("child-" + i + ".dat");
+    FileChannel channel = null;
+    FileLock lock = null;
+    try {
+
+      File file = child.toFile();
+      channel = new RandomAccessFile(file, "rw").getChannel();
+      lock = channel.lock();
+
+      try {
+        future.get(5, TimeUnit.SECONDS);
+      } catch (TimeoutException e) {
+        // Expected exception.
+      }
+
+      assertEquals("Create event for the child file was notified", 1, this.recorder.events.size());
+
+      assertTrue(
+          "Create event for the child file was notified",
+          this.recorder.events.stream().anyMatch(
+              e -> e.eventType() == DirectoryChangeEvent.EventType.CREATE && e.path().getFileName().equals(child.getFileName())));
+
+    } finally {
+      if (lock != null && channel != null && channel.isOpen()) {
+        lock.release();
+        channel.close();
+      }
+      if (this.watcher != null) {
+        this.watcher.close();
+      }
+    }
+  }
+
+  @Test
+  public void doNotEmitCreateEventWhenFileLockedWithHashing() throws IOException, ExecutionException, InterruptedException {
+    Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("win"));
+    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, true);
+    final CompletableFuture future = this.watcher.watchAsync();
+    Random random = new Random();
+    int i = random.nextInt(100_000);
+    final Path child = tmpDir.resolve("child-" + i + ".dat");
+    FileChannel channel = null;
+    FileLock lock = null;
+    try {
+
+      File file = child.toFile();
+      channel = new RandomAccessFile(file, "rw").getChannel();
+      lock = channel.lock();
+
+      try {
+        future.get(5, TimeUnit.SECONDS);
+      } catch (TimeoutException e) {
+        // Expected exception.
+      }
+
+      assertEquals("No event for the file creation expected", 0, this.recorder.events.size());
+
+    } finally {
+      if (lock != null && channel != null && channel.isOpen()) {
+        lock.release();
+        channel.close();
+      }
+      if (this.watcher != null) {
+        this.watcher.close();
+      }
+    }
   }
 
   class EventRecorder implements DirectoryChangeListener {
