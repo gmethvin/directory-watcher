@@ -47,14 +47,14 @@ public class DirectoryWatcherOnDiskTest {
 
   @Test
   public void copySubDirectoryFromOutsideNoHashing() throws IOException, ExecutionException, InterruptedException {
-    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, false);
+    this.watcher = DirectoryWatcher.builder().path(this.tmpDir).listener(this.recorder).fileHashing(false).build();
     copySubDirectoryFromOutside();
     this.watcher.close();
   }
 
   @Test
   public void copySubDirectoryFromOutsideWithHashing() throws IOException, ExecutionException, InterruptedException {
-    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, true);
+    this.watcher = DirectoryWatcher.builder().path(this.tmpDir).listener(this.recorder).fileHashing(true).build();
     copySubDirectoryFromOutside();
     this.watcher.close();
   }
@@ -91,14 +91,14 @@ public class DirectoryWatcherOnDiskTest {
 
   @Test
   public void moveSubDirectoryNoHashing() throws IOException, ExecutionException, InterruptedException {
-    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, false);
+    this.watcher = DirectoryWatcher.builder().path(this.tmpDir).listener(this.recorder).fileHashing(false).build();
     moveSubDirectory();
     this.watcher.close();
   }
 
   @Test
   public void moveSubDirectoryWithHashing() throws IOException, ExecutionException, InterruptedException {
-    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, true);
+    this.watcher = DirectoryWatcher.builder().path(this.tmpDir).listener(this.recorder).fileHashing(true).build();
     moveSubDirectory();
     this.watcher.close();
   }
@@ -143,7 +143,7 @@ public class DirectoryWatcherOnDiskTest {
   public void emitCreateEventWhenFileLockedNoHashing() throws IOException, ExecutionException, InterruptedException {
     Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("win"));
 
-    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, false);
+    this.watcher = DirectoryWatcher.builder().path(this.tmpDir).listener(this.recorder).fileHashing(false).build();
     final CompletableFuture future = this.watcher.watchAsync();
     Random random = new Random();
     int i = random.nextInt(100_000);
@@ -183,7 +183,7 @@ public class DirectoryWatcherOnDiskTest {
   @Test
   public void doNotEmitCreateEventWhenFileLockedWithHashing() throws IOException, ExecutionException, InterruptedException {
     Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("win"));
-    this.watcher = DirectoryWatcher.create(Collections.singletonList(this.tmpDir), this.recorder, true);
+    this.watcher = DirectoryWatcher.builder().path(this.tmpDir).listener(this.recorder).fileHashing(true).build();
     final CompletableFuture future = this.watcher.watchAsync();
     Random random = new Random();
     int i = random.nextInt(100_000);
