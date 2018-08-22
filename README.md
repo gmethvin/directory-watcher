@@ -28,7 +28,7 @@ Replace the `directoryWatcherVersion` with the latest version ([![Maven](https:/
 
 ## Java API
 
-Use `DirectoryWatcher.create` to create a new watcher, then use either `watch()` to block the current thread while watching or `watchAsync()` to watch in another thread. This will automatically detect Mac OS X and provide a native implementation based on the Carbon File System Events API.
+Use `DirectoryWatcher.builder()` to build a new watcher, then use either `watch()` to block the current thread while watching or `watchAsync()` to watch in another thread. This will automatically detect Mac OS X and provide a native implementation based on the Carbon File System Events API.
 
 ### Java Example
 
