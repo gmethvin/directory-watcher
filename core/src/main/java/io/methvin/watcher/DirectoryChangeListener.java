@@ -15,17 +15,25 @@ package io.methvin.watcher;
 
 import java.io.IOException;
 
+/**
+ * A listener that is called when file change events occur or when exceptions occur while watching.
+ */
 @FunctionalInterface
 public interface DirectoryChangeListener {
 
   void onEvent(DirectoryChangeEvent event) throws IOException;
 
+  /**
+   * The watcher will stop watching after this method returns false.
+   */
   default boolean isWatching() {
     return true;
   }
 
-  // A handler for uncaught exceptions. This can rethrow the exception to terminate the watcher.
+  /**
+   * A handler for uncaught exceptions. Throwing an exception from here will terminate the watcher.
+   */
   default void onException(Exception e) {
-    DirectoryWatcher.logger.debug("Got exception while watching", e);
+    // Ignore exceptions by default (they will be logged by the watcher)
   }
 }

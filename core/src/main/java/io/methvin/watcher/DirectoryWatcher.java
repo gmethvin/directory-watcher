@@ -14,24 +14,6 @@
 
 package io.methvin.watcher;
 
-import java.io.IOException;
-import java.nio.file.FileSystems;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.WatchEvent;
-import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
-import java.nio.file.Watchable;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ForkJoinPool;
-
 import com.google.common.hash.HashCode;
 import com.sun.nio.file.ExtendedWatchEventModifier;
 import io.methvin.watcher.DirectoryChangeEvent.EventType;
@@ -40,15 +22,110 @@ import io.methvin.watchservice.WatchablePath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
+
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
-import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
+import static java.nio.file.StandardWatchEventKinds.*;
 
 public class DirectoryWatcher {
 
-  static final Logger logger = LoggerFactory.getLogger(DirectoryWatcher.class);
+  /**
+   * A builder for a {@link DirectoryWatcher}. Use {@code DirectoryWatcher.builder()} to get a new instance.
+   */
+  public static final class Builder {
+    private List<Path> paths = Collections.emptyList();
+    private DirectoryChangeListener listener = (event -> {});
+    private Logger logger = null;
+    private boolean enableFileHashing = true;
+    private WatchService watchService = null;
+
+    private Builder() {}
+
+    /**
+     * Set multiple paths to watch.
+     */
+    public Builder paths(List<Path> paths) {
+      this.paths = paths;
+      return this;
+    }
+
+    /**
+     * Set a single path to watch.
+     */
+    public Builder path(Path path) {
+      return paths(Collections.singletonList(path));
+    }
+
+    /**
+     * Set a listener that will be called when a directory change event occurs.
+     */
+    public Builder listener(DirectoryChangeListener listener) {
+      this.listener = listener;
+      return this;
+    }
+
+    /**
+     * Set a {@link WatchService} implementation that will be used by the watcher.
+     *
+     * By default, this detects your OS and either uses the native JVM watcher or the macOS watcher.
+     */
+    public Builder watchService(WatchService watchService) {
+      this.watchService = watchService;
+      return this;
+    }
+
+    /**
+     * Set a logger to be used by the watcher. This defaults to {@code LoggerFactory.getLogger(DirectoryWatcher.class)}
+     */
+    public Builder logger(Logger logger) {
+      this.logger = logger;
+      return this;
+    }
+
+    /**
+     * Defines whether file hashing should be used to catch duplicate events. Defaults to {@code true}.
+     */
+    public Builder fileHashing(boolean enabled) {
+      this.enableFileHashing = enabled;
+      return this;
+    }
+
+    public DirectoryWatcher build() throws IOException {
+      if (watchService == null) {
+        osDefaultWatchService();
+      }
+      if (logger == null) {
+        staticLogger();
+      }
+      return new DirectoryWatcher(paths, listener, watchService, enableFileHashing, logger);
+    }
+
+    private Builder osDefaultWatchService() throws IOException {
+      boolean isMac = System.getProperty("os.name").toLowerCase().contains("mac");
+      return watchService(isMac ? new MacOSXListeningWatchService() : FileSystems.getDefault().newWatchService());
+    }
+
+    private Builder staticLogger() {
+      return logger(LoggerFactory.getLogger(DirectoryWatcher.class));
+    }
+  }
+
+  /**
+   * Get a new builder for a {@link DirectoryWatcher}.
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  private final Logger logger;
 
   private final WatchService watchService;
   private final List<Path> paths;
@@ -61,21 +138,7 @@ public class DirectoryWatcher {
   private Boolean fileTreeSupported = null;
   private boolean enableFileHashing;
 
-  public static DirectoryWatcher create(Path path, DirectoryChangeListener listener) throws IOException {
-    return create(Collections.singletonList(path), listener, true);
-  }
-
-  public static DirectoryWatcher create(List<Path> paths, DirectoryChangeListener listener) throws IOException {
-    return create(paths, listener, true);
-  }
-
-  public static DirectoryWatcher create(List<Path> paths, DirectoryChangeListener listener, boolean enableFileHashing) throws IOException {
-    boolean isMac = System.getProperty("os.name").toLowerCase().contains("mac");
-    WatchService ws = isMac ? new MacOSXListeningWatchService() : FileSystems.getDefault().newWatchService();
-    return new DirectoryWatcher(paths, listener, ws, enableFileHashing);
-  }
-
-  public DirectoryWatcher(List<Path> paths, DirectoryChangeListener listener, WatchService watchService, boolean enableFileHashing) throws IOException {
+  public DirectoryWatcher(List<Path> paths, DirectoryChangeListener listener, WatchService watchService, boolean enableFileHashing, Logger logger) throws IOException {
     this.paths = paths;
     this.listener = listener;
     this.watchService = watchService;
@@ -83,6 +146,7 @@ public class DirectoryWatcher {
     this.pathHashes = PathUtils.createHashCodeMap(paths);
     this.keyRoots = PathUtils.createKeyRootsMap();
     this.enableFileHashing = enableFileHashing;
+    this.logger = logger;
 
     for (Path path : paths) {
       registerAll(path);
@@ -90,7 +154,7 @@ public class DirectoryWatcher {
   }
 
   /**
-   * Asynchronously watch the directories using ForkJoinPool.commonPool() as the executor
+   * Asynchronously watch the directories using {@code ForkJoinPool.commonPool()} as the executor
    */
   public CompletableFuture<Void> watchAsync() {
     return watchAsync(ForkJoinPool.commonPool());
@@ -190,6 +254,7 @@ public class DirectoryWatcher {
             listener.onEvent(new DirectoryChangeEvent(EventType.DELETE, childPath, count));
           }
         } catch (Exception e) {
+          logger.debug("DirectoryWatcher got an exception while watching!", e);
           listener.onException(e);
         }
       }

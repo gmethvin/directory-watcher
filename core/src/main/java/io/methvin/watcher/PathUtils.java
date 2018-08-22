@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
+import java.security.MessageDigest;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;

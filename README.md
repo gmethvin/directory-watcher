@@ -50,13 +50,19 @@ public class DirectoryWatchingUtility {
 
   public DirectoryWatchingUtility(Path directoryToWatch) {
     this.directoryToWatch = directoryToWatch;
-    this.watcher = DirectoryWatcher.create(directoryToWatch, event -> {
-      switch (event.eventType()) {
-        case CREATE: /* file created */; break;
-        case MODIFY: /* file modified */; break;
-        case DELETE: /* file deleted */; break;
-      }
-    });
+    this.watcher = DirectoryWatcher.builder()
+        .path(directoryToWatch) // or use paths(directoriesToWatch)
+        .listener(event -> {
+          switch (event.eventType()) {
+            case CREATE: /* file created */; break;
+            case MODIFY: /* file modified */; break;
+            case DELETE: /* file deleted */; break;
+          }
+        })
+        // .fileHashing(false) // defaults to true
+        // .logger(logger) // defaults to LoggerFactory.getLogger(DirectoryWatcher.class)
+        // .watchService(watchService) // defaults based on OS to either JVM WatchService or the JNA macOS WatchService
+        .build();
   }
 
   public void stopWatching() {
@@ -75,9 +81,13 @@ public class DirectoryWatchingUtility {
 By default, DirectoryWatcher will try to prevent duplicate events (e.g. Windows will emit duplicate modify events when a file is changed). This is done by creating a hash for every file encountered and keeping that hash in memory.
 This might result in slower performance, because the library has to calculate the hash of the entire file. In addition, some events may not be emitted if DirectoryWatcher encounters a file that is locked by another process while computing the hash.
 
-To disable hashing, you can set `enableFileHashing` parameter to `false` when calling `DirectoryWatcher.create`
+To disable hashing, you can explicitly set `fileHashing(false)` when building your `DirectoryWatcher`:
 ```
-DirectoryWatcher watcher = DirectoryWatcher.create(path, listener, false);
+DirectoryWatcher watcher = DirectoryWatcher.builder()
+    .path(path)
+    .listener(listener)
+    .fileHashing(false)
+    .build();
 ```
 
 ## better-files integration (Scala)
@@ -116,6 +126,8 @@ val watcher = new RecursiveFileMonitor(myDir) {
   }
 }
 ```
+
+`RecursiveFileMonitor` also accepts an `enableFileHashing` parameter, which defaults to `true`, and a `Logger`, which defaults to a `NopLogger`.
 
 Note that unlike the better-files `FileMonitor` implementation, this implementation only supports fully recursive watching.
 
