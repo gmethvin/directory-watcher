@@ -22,10 +22,10 @@ lazy val `directory-watcher` = (project in file("core"))
     crossPaths := false,
     libraryDependencies ++= Seq(
       "net.java.dev.jna" % "jna" % "4.2.1",
-      "com.google.guava" % "guava" % "23.0",
       "org.slf4j" % "slf4j-api" % "1.7.25",
 
       "io.airlift" % "command" % "0.2" % Test,
+      "com.google.guava" % "guava" % "23.0" % Test,
       "org.codehaus.plexus" % "plexus-utils" % "3.0.22" % Test,
       "commons-io" % "commons-io" % "2.6" % Test
     )

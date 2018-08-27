@@ -9,6 +9,7 @@ import io.methvin.watcher.DirectoryChangeEvent
 import io.methvin.watcher.DirectoryChangeEvent.EventType
 import io.methvin.watcher.DirectoryChangeListener
 import io.methvin.watcher.DirectoryWatcher
+import io.methvin.watcher.hashing.FileHasher
 import org.slf4j.Logger
 import org.slf4j.helpers.NOPLogger
 
@@ -18,12 +19,12 @@ import scala.concurrent.ExecutionContext
   * An implementation of the better-files `File.Monitor` interface using directory-watcher.
   *
   * @param root the root directory to watch
-  * @param enableFileHashing `true` to hash files to prevent duplicate events, `false` to turn off hashing files.
-  * @param logger the logger used by `DirectoryWatcher`. Useful to see debug output.
+  * @param fileHasher a hasher implementation used to hash files to prevent duplicate events. `None` to disable hashing.
+  * @param logger the logger used by `DirectoryWatcher`. Useful to see debug output. Defaults to nop logger.
   */
 abstract class RecursiveFileMonitor(
   val root: File,
-  val enableFileHashing: Boolean = true,
+  val fileHasher: Option[FileHasher] = Some(FileHasher.DEFAULT_FILE_HASHER),
   val logger: Logger = NOPLogger.NOP_LOGGER
 ) extends File.Monitor {
 
@@ -62,7 +63,7 @@ abstract class RecursiveFileMonitor(
         }
       }
     )
-    .fileHashing(enableFileHashing)
+    .fileHasher(fileHasher.orNull)
     .logger(logger)
     .build()
 

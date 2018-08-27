@@ -13,30 +13,20 @@
  */
 package io.methvin.watchservice;
 
+import com.sun.jna.NativeLong;
+import com.sun.jna.Pointer;
+import io.methvin.watcher.PathUtils;
+import io.methvin.watcher.hashing.FileHasher;
+import io.methvin.watcher.hashing.HashCode;
+import io.methvin.watchservice.jna.*;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.WatchEvent;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
-import com.google.common.hash.HashCode;
-import com.sun.jna.NativeLong;
-import com.sun.jna.Pointer;
-import io.methvin.watcher.PathUtils;
-import io.methvin.watchservice.jna.CFArrayRef;
-import io.methvin.watchservice.jna.CFStringRef;
-import io.methvin.watchservice.jna.CFIndex;
-import io.methvin.watchservice.jna.CFRunLoopRef;
-import io.methvin.watchservice.jna.CarbonAPI;
-import io.methvin.watchservice.jna.FSEventStreamRef;
-
-import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
+import static java.nio.file.StandardWatchEventKinds.*;
 
 
 /**
@@ -69,6 +59,11 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     default int queueSize() {
       return DEFAULT_QUEUE_SIZE;
     }
+
+    /**
+     * The file hasher to use to verify files. If null, this will use the default directory-watcher hasher.
+     */
+    default FileHasher fileHasher() { return null; }
   }
 
   // need to keep reference to callbacks to prevent garbage collection
@@ -79,10 +74,15 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
 
   private final double latency;
   private final int queueSize;
+  private final FileHasher fileHasher;
 
   public MacOSXListeningWatchService(Config config) {
     this.latency = config.latency();
     this.queueSize = config.queueSize();
+
+    // File hasher cannot be null, because the MacOS watcher depends on those hashes to work properly.
+    FileHasher fileHasher = config.fileHasher();
+    this.fileHasher = fileHasher == null ? FileHasher.DEFAULT_FILE_HASHER : fileHasher;
   }
 
   public MacOSXListeningWatchService() {
@@ -98,13 +98,13 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     for (Path watchedPath: pathsWatching) {
       if (file.startsWith(watchedPath)) return watchKey;
     }
-    final Map<Path, HashCode> hashCodeMap = PathUtils.createHashCodeMap(file);
+    final Map<Path, HashCode> hashCodeMap = PathUtils.createHashCodeMap(file, fileHasher);
     final String s = file.toFile().getAbsolutePath();
     final Pointer[] values = {CFStringRef.toCFString(s).getPointer()};
     final CFArrayRef pathsToWatch = CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);
     final long kFSEventStreamEventIdSinceNow = -1; //  this is 0xFFFFFFFFFFFFFFFF
     final int kFSEventStreamCreateFlagNoDefer = 0x00000002;
-    final CarbonAPI.FSEventStreamCallback callback = new MacOSXListeningCallback(watchKey, hashCodeMap);
+    final CarbonAPI.FSEventStreamCallback callback = new MacOSXListeningCallback(watchKey, fileHasher, hashCodeMap);
     callbackList.add(callback);
     final FSEventStreamRef stream = CarbonAPI.INSTANCE.FSEventStreamCreate(
       Pointer.NULL,
@@ -165,10 +165,12 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
   private static class MacOSXListeningCallback implements CarbonAPI.FSEventStreamCallback {
     private final MacOSXWatchKey watchKey;
     private final Map<Path, HashCode> hashCodeMap;
+    private final FileHasher fileHasher;
 
-    private MacOSXListeningCallback(MacOSXWatchKey watchKey, Map<Path, HashCode> hashCodeMap) {
+    private MacOSXListeningCallback(MacOSXWatchKey watchKey, FileHasher fileHasher, Map<Path, HashCode> hashCodeMap) {
       this.watchKey = watchKey;
       this.hashCodeMap = hashCodeMap;
+      this.fileHasher = fileHasher;
     }
 
     @Override
@@ -214,7 +216,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       List<Path> modifiedFileList = new ArrayList<Path>();
       for (Path file : filesOnDisk) {
         HashCode storedHashCode = hashCodeMap.get(file);
-        HashCode newHashCode = PathUtils.hash(file);
+        HashCode newHashCode = PathUtils.hash(fileHasher, file);
         if (storedHashCode != null && !storedHashCode.equals(newHashCode) && newHashCode != null) {
           modifiedFileList.add(file);
           hashCodeMap.put(file, newHashCode);
@@ -227,7 +229,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       List<Path> createdFileList = new ArrayList<Path>();
       for (Path file : filesOnDisk) {
         if (!hashCodeMap.containsKey(file)) {
-          HashCode hashCode = PathUtils.hash(file);
+          HashCode hashCode = PathUtils.hash(fileHasher, file);
           if (hashCode != null) {
             createdFileList.add(file);
             hashCodeMap.put(file, hashCode);
