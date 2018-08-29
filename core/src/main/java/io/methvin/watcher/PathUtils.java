@@ -46,6 +46,10 @@ public class PathUtils {
     return new ConcurrentHashMap<>();
   }
 
+  public static Set<Path> createKeyRootsSet() {
+    return ConcurrentHashMap.newKeySet();
+  }
+
   public static Map<Path, HashCode> createHashCodeMap(Path file, FileHasher fileHasher) {
     return createHashCodeMap(Collections.singletonList(file), fileHasher);
   }
@@ -63,6 +67,22 @@ public class PathUtils {
       }
     }
     return lastModifiedMap;
+  }
+
+  public static Set<Path> nonRecursiveListFiles(Path file) {
+    Set<Path> files = new HashSet<Path>();
+    files.add(file);
+    if (file.toFile().isDirectory()) {
+      File[] filesInDirectory = file.toFile().listFiles();
+      if (filesInDirectory != null) {
+        for (File child : filesInDirectory) {
+          if (!child.isDirectory()) {
+            files.add(child.toPath());
+          }
+        }
+      }
+    }
+    return files;
   }
 
   public static Set<Path> recursiveListFiles(Path file) {

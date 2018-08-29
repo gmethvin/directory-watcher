@@ -14,6 +14,7 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -102,6 +103,174 @@ public class DirectoryWatcherTest {
     runWatcher(directory.toPath(), FileSystems.getDefault().newWatchService());
   }
 
+  private Path setUpTestForWatchingFiles() throws Exception {
+    File directory = new File(new File("").getAbsolutePath(), "target/directory");
+    FileUtils.deleteDirectory(directory);
+    directory.mkdirs();
+    return directory.toPath();
+  }
+
+  private WatchService pickWatchServiceDependingOnOS() throws Exception {
+    if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+      return new MacOSXListeningWatchService();
+    } else {
+      return FileSystems.getDefault().newWatchService();
+    }
+  }
+
+
+  @Test
+  public void supportFileWatchingOnFiles() throws Exception {
+    Path directory = setUpTestForWatchingFiles();
+    WatchService watchService = pickWatchServiceDependingOnOS();
+
+    int waitInMs = 500;
+    FileSystem fileSystem = new FileSystem(directory)
+        .create("a1.txt")
+        .wait(waitInMs)
+        .create("b2.txt")
+        .wait(waitInMs)
+        .directory("foo")
+        .wait(waitInMs)
+        .create("foo/c3.txt")
+        .wait(waitInMs)
+        .delete("b2.txt")
+        .wait(waitInMs)
+        .update("a1.txt", "hello")
+        .wait(waitInMs)
+        .delete("foo")
+        .wait(waitInMs);
+
+    // Collect our filesystem actions
+    List<FileSystemAction> actions = fileSystem.actions();
+
+    // We expect 4 actions: the create events of a1 and b2, the update of a1 and the removal of b2
+    int expectedActions = 4;
+    Path targetFile = directory.resolve("a1.txt");
+    TestDirectoryChangeListener listener = new TestDirectoryChangeListener(directory, expectedActions);
+
+    DirectoryWatcher watcher = DirectoryWatcher.builder()
+        .files(Collections.singletonList(targetFile))
+        .listener(listener)
+        .watchService(watchService)
+        .fileHashing(true)
+        .build();
+
+    // Fire up the filesystem watcher
+    CompletableFuture<Void> future = watcher.watchAsync();
+    // Play our filesystem events
+    fileSystem.playActions();
+    // Wait for the future to complete which is when the right number of events are captured
+    future.get(10, TimeUnit.SECONDS);
+    ListMultimap<String, WatchEvent.Kind<?>> events = listener.events;
+    // Close the watcher
+    watcher.close();
+
+    // Let's see if everything works!
+    assertEquals("actions.size", expectedActions, events.size());
+
+    List<WatchEvent.Kind<?>> a1 = events.get("a1.txt");
+    assertEquals("a1.size", 2, a1.size());
+    assertEquals(a1.get(0), actions.get(0).kind);
+    assertEquals(a1.get(1), actions.get(5).kind);
+
+    List<WatchEvent.Kind<?>> b2 = events.get("b2.txt");
+    assertEquals("b2.size", 2, b2.size());
+    assertEquals(b2.get(0), actions.get(1).kind);
+    assertEquals(b2.get(1), actions.get(4).kind);
+
+    // foo is a directory inside a watched non-recursive directory, so it should be ignored
+    List<WatchEvent.Kind<?>> foo = events.get("foo");
+    assertEquals("foo.size", 0, foo.size());
+
+    // c3 is a directory inside foo, so it should be ignored
+    List<WatchEvent.Kind<?>> c3 = events.get("foo/c3.txt");
+    assertEquals("c3.size", 0, c3.size());
+  }
+
+  @Test
+  public void validateWatchingOnConflictingRecursiveAndNonRecursiveDirs() throws Exception {
+    Path directory = setUpTestForWatchingFiles();
+    WatchService watchService = pickWatchServiceDependingOnOS();
+
+    int waitInMs = 500;
+    FileSystem fileSystem = new FileSystem(directory)
+        .create("foo/a1.txt")
+        .wait(waitInMs)
+        .create("foo/b2.txt")
+        .wait(waitInMs)
+        .delete("foo/a1.txt")
+        .wait(waitInMs)
+        .create("c3.txt")
+        .wait(waitInMs)
+        .delete("foo/b2.txt")
+        .wait(waitInMs)
+        .directory("foo/bar")
+        .wait(waitInMs)
+        .create("foo/bar/d4.txt")
+        .wait(waitInMs)
+        .update("foo/bar/d4.txt", "hello")
+        .wait(waitInMs)
+        .delete("c3.txt")
+        .wait(waitInMs);
+
+    // Collect our filesystem actions
+    List<FileSystemAction> actions = fileSystem.actions();
+
+    // We expect all actions because the recursive directory subsumes the non-recursive dir triggered by watching the file
+    int expectedActions = actions.size();
+
+    // Create foo parent so that the registration works
+    Files.createDirectories(directory.resolve("foo"));
+    Path targetFile = directory.resolve("foo").resolve("a1.txt");
+    TestDirectoryChangeListener listener = new TestDirectoryChangeListener(directory, expectedActions);
+
+    DirectoryWatcher watcher = DirectoryWatcher.builder()
+        .files(Collections.singletonList(targetFile))
+        .path(directory)
+        .listener(listener)
+        .watchService(watchService)
+        .fileHashing(true)
+        .build();
+
+    // Fire up the filesystem watcher
+    CompletableFuture<Void> future = watcher.watchAsync();
+    // Play our filesystem events
+    fileSystem.playActions();
+    // Wait for the future to complete which is when the right number of events are captured
+    future.get(10, TimeUnit.SECONDS);
+    ListMultimap<String, WatchEvent.Kind<?>> events = listener.events;
+    // Close the watcher
+    watcher.close();
+
+    // Let's see if everything works!
+    assertEquals("actions.size", expectedActions, events.size());
+
+    List<WatchEvent.Kind<?>> a1 = events.get("foo/a1.txt");
+    assertEquals("a1.size", 2, a1.size());
+    assertEquals(a1.get(0), actions.get(0).kind);
+    assertEquals(a1.get(1), actions.get(2).kind);
+
+    List<WatchEvent.Kind<?>> b2 = events.get("foo/b2.txt");
+    assertEquals("b2.size", 2, b2.size());
+    assertEquals(b2.get(0), actions.get(1).kind);
+    assertEquals(b2.get(1), actions.get(4).kind);
+
+    List<WatchEvent.Kind<?>> c3 = events.get("c3.txt");
+    assertEquals("c3.size", 2, c3.size());
+    assertEquals(c3.get(0), actions.get(3).kind);
+    assertEquals(c3.get(1), actions.get(8).kind);
+
+    List<WatchEvent.Kind<?>> bar = events.get("foo/bar");
+    assertEquals("bar.size", 1, bar.size());
+    assertEquals(bar.get(0), actions.get(5).kind);
+
+    List<WatchEvent.Kind<?>> d4 = events.get("foo/bar/d4.txt");
+    assertEquals("d4.size", 2, d4.size());
+    assertEquals(d4.get(0), actions.get(6).kind);
+    assertEquals(d4.get(1), actions.get(7).kind);
+  }
+
   protected void runWatcher(Path directory, WatchService watchService) throws Exception {
     //
     // start our service
@@ -136,7 +305,8 @@ public class DirectoryWatcherTest {
     // Collect our filesystem actions
     List<FileSystemAction> actions = fileSystem.actions();
 
-    TestDirectoryChangeListener listener = new TestDirectoryChangeListener(directory, actions);
+    TestDirectoryChangeListener listener =
+        new TestDirectoryChangeListener(directory, actions.size());
     DirectoryWatcher watcher = DirectoryWatcher.builder()
         .path(directory)
         .listener(listener)
@@ -195,15 +365,13 @@ public class DirectoryWatcherTest {
 
   class TestDirectoryChangeListener implements DirectoryChangeListener {
     final Path directory;
-    final List<FileSystemAction> actions;
     final ListMultimap<String, WatchEvent.Kind<?>> events = ArrayListMultimap.create();
     final int totalActions;
     int actionsProcessed = 0;
 
-    public TestDirectoryChangeListener(Path directory, List<FileSystemAction> actions) {
+    public TestDirectoryChangeListener(Path directory, int expectedActions) {
       this.directory = directory;
-      this.actions = actions;
-      this.totalActions = actions.size();
+      this.totalActions = expectedActions;
     }
 
     @Override

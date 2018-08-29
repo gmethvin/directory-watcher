@@ -25,16 +25,22 @@ import java.util.Arrays;
 public class WatchablePath implements Watchable {
 
   private final Path file;
+  private final boolean isRecursive;
 
-  public WatchablePath(Path file) {
+  public WatchablePath(Path file, boolean isRecursive) {
     if (file == null) {
       throw new NullPointerException("file must not be null");
     }
     this.file = file;
+    this.isRecursive = isRecursive;
   }
 
   public Path getFile() {
     return file;
+  }
+
+  public boolean isRecursive() {
+    return this.isRecursive;
   }
 
   @Override

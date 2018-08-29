@@ -104,7 +104,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     final CFArrayRef pathsToWatch = CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);
     final long kFSEventStreamEventIdSinceNow = -1; //  this is 0xFFFFFFFFFFFFFFFF
     final int kFSEventStreamCreateFlagNoDefer = 0x00000002;
-    final CarbonAPI.FSEventStreamCallback callback = new MacOSXListeningCallback(watchKey, fileHasher, hashCodeMap);
+    final CarbonAPI.FSEventStreamCallback callback = new MacOSXListeningCallback(watchKey, fileHasher, hashCodeMap, watchable);
     callbackList.add(callback);
     final FSEventStreamRef stream = CarbonAPI.INSTANCE.FSEventStreamCreate(
       Pointer.NULL,
@@ -166,11 +166,13 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     private final MacOSXWatchKey watchKey;
     private final Map<Path, HashCode> hashCodeMap;
     private final FileHasher fileHasher;
+    private final WatchablePath watchable;
 
-    private MacOSXListeningCallback(MacOSXWatchKey watchKey, FileHasher fileHasher, Map<Path, HashCode> hashCodeMap) {
+    private MacOSXListeningCallback(MacOSXWatchKey watchKey, FileHasher fileHasher, Map<Path, HashCode> hashCodeMap, WatchablePath watchable) {
       this.watchKey = watchKey;
       this.hashCodeMap = hashCodeMap;
       this.fileHasher = fileHasher;
+      this.watchable = watchable;
     }
 
     @Override
@@ -179,8 +181,18 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       final int length = numEvents.intValue();
 
       for (String folderName : eventPaths.getStringArray(0, length)) {
-        final Set<Path> filesOnDisk = PathUtils.recursiveListFiles(new File(folderName).toPath());
-        //
+        final Path folderPath = new File(folderName).toPath();
+        final Set<Path> filesOnDisk = new HashSet<Path>();
+        if (this.watchable.isRecursive()) {
+          filesOnDisk.addAll(PathUtils.recursiveListFiles(new File(folderName).toPath()));
+        } else {
+          // Ignore directory-level events whose path is a subpath of a non-recursive watchable
+          Path watchPath = this.watchable.getFile();
+          if (!folderPath.getParent().startsWith(watchPath)) {
+            filesOnDisk.addAll(PathUtils.nonRecursiveListFiles(new File(folderName).toPath()));
+          }
+        }
+
         // We collect and process all actions for each category of created, modified and deleted as it appears a first thread
         // can start while a second thread can get through faster. If we do the collection for each category in a second
         // thread can get to the processing of modifications before the first thread is finished processing creates.
@@ -190,7 +202,6 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
         // together the last modified time is not granular enough to be seen as a modification. This likely mitigates
         // the issue I originally saw where the ordering was incorrect but I will leave the collection and processing
         // of each category together.
-        //
 
         for (Path file : findCreatedFiles(filesOnDisk)) {
           if (watchKey.isReportCreateEvents()) {
