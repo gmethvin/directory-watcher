@@ -4,6 +4,8 @@
 
 A directory watcher utility for JDK 8+ that aims to provide accurate and efficient recursive watching for Linux, macOS and Windows. In particular, this library provides a JNA-based `WatchService` for Mac OS X to replace the default polling-based JDK implementation.
 
+The core directory-watcher library is designed to have minimal dependencies; currently it only depends on `slf4j-api` (for internal logging, which can be disabled by passing a `NOPLogger` in the builder) and `jna` (for the macOS watcher implementation).
+
 ## Getting started
 
 First add the dependency for your preferred build system.
@@ -90,6 +92,18 @@ DirectoryWatcher watcher = DirectoryWatcher.builder()
     .build();
 ```
 
+You can also provide a totally different hasher implementation:
+```
+DirectoryWatcher watcher = DirectoryWatcher.builder()
+    .path(path)
+    .listener(listener)
+    // use the last modified time as a "hash" to determine if the file has changed
+    .fileHasher(path -> HashCode.fromLong(Files.getLastModifiedTime(path).toMillis()))
+    .build();
+```
+
+(Note that simply using the last modified time may not be precise enough for all situations, so could result in missed modify events, but will usually be faster than hashing actual file contents.)
+
 ## better-files integration (Scala)
 
 While the core `directory-watcher` library is Java only, we also provide `better-files` integration, which is the recommended API for Scala 2.12 users. To add the library:
@@ -127,7 +141,7 @@ val watcher = new RecursiveFileMonitor(myDir) {
 }
 ```
 
-`RecursiveFileMonitor` also accepts an `enableFileHashing` parameter, which defaults to `true`, and a `Logger`, which defaults to a `NopLogger`.
+`RecursiveFileMonitor` also accepts an optional `fileHasher` parameter, which defaults to the hasher used by `DirectoryWatcher` by default. Set to `None` to disable hashing. 
 
 Note that unlike the better-files `FileMonitor` implementation, this implementation only supports fully recursive watching.
 

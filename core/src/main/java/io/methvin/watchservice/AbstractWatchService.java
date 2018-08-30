@@ -26,8 +26,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import javax.annotation.Nullable;
-
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -75,14 +73,12 @@ abstract class AbstractWatchService implements WatchService {
    */
   public void cancelled(AbstractWatchKey key) {}
 
-  @Nullable
   @Override
   public WatchKey poll() {
     checkOpen();
     return check(queue.poll());
   }
 
-  @Nullable
   @Override
   public WatchKey poll(long timeout, TimeUnit unit) throws InterruptedException {
     checkOpen();
@@ -98,8 +94,7 @@ abstract class AbstractWatchService implements WatchService {
   /**
    * Returns the given key, throwing an exception if it's the poison.
    */
-  @Nullable
-  private WatchKey check(@Nullable WatchKey key) {
+  private WatchKey check(WatchKey key) {
     if (key == poison) {
       // ensure other blocking threads get the poison
       queue.offer(poison);
@@ -133,10 +128,9 @@ abstract class AbstractWatchService implements WatchService {
     private final Kind<T> kind;
     private final int count;
 
-    @Nullable
     private final T context;
 
-    public Event(Kind<T> kind, int count, @Nullable T context) {
+    public Event(Kind<T> kind, int count, T context) {
       this.kind = requireNonNull(kind);
       if (count < 0) {
         throw new IllegalArgumentException(String.format("count (%s) must be non-negative", count));
@@ -155,7 +149,6 @@ abstract class AbstractWatchService implements WatchService {
       return count;
     }
 
-    @Nullable
     @Override
     public T context() {
       return context;

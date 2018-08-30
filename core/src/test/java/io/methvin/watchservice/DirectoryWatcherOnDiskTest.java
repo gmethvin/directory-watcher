@@ -3,6 +3,7 @@ package io.methvin.watchservice;
 import io.methvin.watcher.DirectoryChangeEvent;
 import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
+import io.methvin.watcher.hashing.HashCode;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Assume;
@@ -17,7 +18,6 @@ import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -182,6 +182,7 @@ public class DirectoryWatcherOnDiskTest {
 
   @Test
   public void doNotEmitCreateEventWhenFileLockedWithHashing() throws IOException, ExecutionException, InterruptedException {
+    // This test confirms our assumption that on Windows we lose the event when the hashed file is locked.
     Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("win"));
     this.watcher = DirectoryWatcher.builder().path(this.tmpDir).listener(this.recorder).fileHashing(true).build();
     final CompletableFuture future = this.watcher.watchAsync();

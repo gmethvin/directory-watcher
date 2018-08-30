@@ -14,9 +14,10 @@
 
 package io.methvin.watcher;
 
-import com.google.common.hash.HashCode;
 import com.sun.nio.file.ExtendedWatchEventModifier;
 import io.methvin.watcher.DirectoryChangeEvent.EventType;
+import io.methvin.watcher.hashing.FileHasher;
+import io.methvin.watcher.hashing.HashCode;
 import io.methvin.watchservice.MacOSXListeningWatchService;
 import io.methvin.watchservice.WatchablePath;
 import org.slf4j.Logger;
@@ -44,7 +45,7 @@ public class DirectoryWatcher {
     private List<Path> paths = Collections.emptyList();
     private DirectoryChangeListener listener = (event -> {});
     private Logger logger = null;
-    private boolean enableFileHashing = true;
+    private FileHasher fileHasher = FileHasher.DEFAULT_FILE_HASHER;
     private WatchService watchService = null;
 
     private Builder() {}
@@ -94,9 +95,20 @@ public class DirectoryWatcher {
      * Defines whether file hashing should be used to catch duplicate events. Defaults to {@code true}.
      */
     public Builder fileHashing(boolean enabled) {
-      this.enableFileHashing = enabled;
+      this.fileHasher = enabled ? FileHasher.DEFAULT_FILE_HASHER : null;
       return this;
     }
+
+    /**
+     * Defines the file hasher to be used by the watcher.
+     *
+     * Note: will implicitly enable file hashing. Setting to null is equivalent to {@code fileHashing(false)}
+     */
+    public Builder fileHasher(FileHasher fileHasher) {
+      this.fileHasher = fileHasher;
+      return this;
+    }
+
 
     public DirectoryWatcher build() throws IOException {
       if (watchService == null) {
@@ -105,7 +117,7 @@ public class DirectoryWatcher {
       if (logger == null) {
         staticLogger();
       }
-      return new DirectoryWatcher(paths, listener, watchService, enableFileHashing, logger);
+      return new DirectoryWatcher(paths, listener, watchService, fileHasher, logger);
     }
 
     private Builder osDefaultWatchService() throws IOException {
@@ -136,16 +148,22 @@ public class DirectoryWatcher {
 
   // this is set to true/false depending on whether recursive watching is supported natively
   private Boolean fileTreeSupported = null;
-  private boolean enableFileHashing;
+  private FileHasher fileHasher;
 
-  public DirectoryWatcher(List<Path> paths, DirectoryChangeListener listener, WatchService watchService, boolean enableFileHashing, Logger logger) throws IOException {
+  public DirectoryWatcher(
+      List<Path> paths,
+      DirectoryChangeListener listener,
+      WatchService watchService,
+      FileHasher fileHasher,
+      Logger logger
+  ) throws IOException {
     this.paths = paths;
     this.listener = listener;
     this.watchService = watchService;
     this.isMac = watchService instanceof MacOSXListeningWatchService;
-    this.pathHashes = PathUtils.createHashCodeMap(paths);
+    this.pathHashes = PathUtils.createHashCodeMap(paths, fileHasher);
     this.keyRoots = PathUtils.createKeyRootsMap();
-    this.enableFileHashing = enableFileHashing;
+    this.fileHasher = fileHasher;
     this.logger = logger;
 
     for (Path path : paths) {
@@ -231,14 +249,14 @@ public class DirectoryWatcher {
             }
             notifyCreateEvent(childPath, count);
           } else if (kind == ENTRY_MODIFY) {
-            if (enableFileHashing || Files.isDirectory(childPath)) {
+            if (fileHasher != null || Files.isDirectory(childPath)) {
               // Note that existingHash may be null due to the file being created before we start listening
               // It's important we don't discard the event in this case
               HashCode existingHash = pathHashes.get(childPath);
 
               // newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession
               // in this case the MODIFY event can be safely ignored
-              HashCode newHash = PathUtils.hash(childPath);
+              HashCode newHash = PathUtils.hash(fileHasher, childPath);
 
               if (newHash != null && !newHash.equals(existingHash)) {
                 pathHashes.put(childPath, newHash);
@@ -320,8 +338,8 @@ public class DirectoryWatcher {
   }
 
   private void notifyCreateEvent(Path path, int count) throws IOException {
-    if (enableFileHashing || Files.isDirectory(path)) {
-      HashCode newHash = PathUtils.hash(path);
+    if (fileHasher != null || Files.isDirectory(path)) {
+      HashCode newHash = PathUtils.hash(fileHasher, path);
       if (newHash == null) {
         logger.debug("Failed to hash created file [{}]. It may have been deleted.", path);
         return;

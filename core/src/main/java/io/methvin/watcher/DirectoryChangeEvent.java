@@ -67,16 +67,26 @@ public final class DirectoryChangeEvent {
   }
 
   @Override
-  public int hashCode() {
-    return Objects.hash(eventType, path);
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    DirectoryChangeEvent that = (DirectoryChangeEvent) o;
+    return count == that.count &&
+        eventType == that.eventType &&
+        Objects.equals(path, that.path);
   }
 
   @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null) return false;
-    if (getClass() != o.getClass()) return false;
-    DirectoryChangeEvent event = (DirectoryChangeEvent) o;
-    return Objects.equals(eventType, event.eventType) && Objects.equals(path, event.path);
+  public int hashCode() {
+    return Objects.hash(eventType, path, count);
+  }
+
+  @Override
+  public String toString() {
+    return "DirectoryChangeEvent{" +
+        "eventType=" + eventType +
+        ", path=" + path +
+        ", count=" + count +
+        '}';
   }
 }

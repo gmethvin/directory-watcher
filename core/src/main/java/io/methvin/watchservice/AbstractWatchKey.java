@@ -29,8 +29,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import javax.annotation.Nullable;
-
 import io.methvin.watchservice.AbstractWatchService.Event;
 
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
@@ -57,7 +55,7 @@ class AbstractWatchKey implements WatchKey {
 
   public AbstractWatchKey(
     AbstractWatchService watcher,
-    @Nullable Watchable watchable,
+    Watchable watchable,
     Iterable<? extends WatchEvent.Kind<?>> subscribedTypes,
     int queueSize
   ) {
