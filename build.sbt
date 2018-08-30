@@ -21,12 +21,12 @@ lazy val `directory-watcher` = (project in file("core"))
     autoScalaLibrary := false,
     crossPaths := false,
     libraryDependencies ++= Seq(
-      "net.java.dev.jna" % "jna" % "4.2.1",
+      "net.java.dev.jna" % "jna" % "4.5.2",
       "org.slf4j" % "slf4j-api" % "1.7.25",
 
-      "io.airlift" % "command" % "0.2" % Test,
-      "com.google.guava" % "guava" % "23.0" % Test,
-      "org.codehaus.plexus" % "plexus-utils" % "3.0.22" % Test,
+      "io.airlift" % "command" % "0.3" % Test,
+      "com.google.guava" % "guava" % "25.1-jre" % Test,
+      "org.codehaus.plexus" % "plexus-utils" % "3.1.0" % Test,
       "commons-io" % "commons-io" % "2.6" % Test
     )
   )
@@ -35,11 +35,11 @@ lazy val `directory-watcher` = (project in file("core"))
 lazy val `directory-watcher-better-files` = (project in file("better-files"))
   .settings(commonSettings)
   .settings(
-    scalaVersion := "2.12.4",
+    scalaVersion := "2.12.6",
     crossPaths := true,
     libraryDependencies ++= Seq(
-      "com.github.pathikrit" %% "better-files" % "3.4.0",
-      "org.scalatest" %% "scalatest" % "3.0.4" % Test
+      "com.github.pathikrit" %% "better-files" % "3.6.0",
+      "org.scalatest" %% "scalatest" % "3.0.5" % Test
     )
   )
   .dependsOn(`directory-watcher`)
