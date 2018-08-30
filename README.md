@@ -4,6 +4,8 @@
 
 A directory watcher utility for JDK 8+ that aims to provide accurate and efficient recursive watching for Linux, macOS and Windows. In particular, this library provides a JNA-based `WatchService` for Mac OS X to replace the default polling-based JDK implementation.
 
+`directory-watcher` can watch both directories and independent-files.
+
 The core directory-watcher library is designed to have minimal dependencies; currently it only depends on `slf4j-api` (for internal logging, which can be disabled by passing a `NOPLogger` in the builder) and `jna` (for the macOS watcher implementation).
 
 ## Getting started
@@ -61,6 +63,7 @@ public class DirectoryWatchingUtility {
             case DELETE: /* file deleted */; break;
           }
         })
+        // .files(independentFilesToWatch)
         // .fileHashing(false) // defaults to true
         // .logger(logger) // defaults to LoggerFactory.getLogger(DirectoryWatcher.class)
         // .watchService(watchService) // defaults based on OS to either JVM WatchService or the JNA macOS WatchService
