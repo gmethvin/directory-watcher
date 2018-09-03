@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -80,7 +80,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     this.latency = config.latency();
     this.queueSize = config.queueSize();
 
-    // File hasher cannot be null, because the MacOS watcher depends on those hashes to work properly.
+    // File hasher cannot be null, because this watch service depends on hashes to work properly.
     FileHasher fileHasher = config.fileHasher();
     this.fileHasher = fileHasher == null ? FileHasher.DEFAULT_FILE_HASHER : fileHasher;
   }
@@ -180,17 +180,17 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
 
       for (String folderName : eventPaths.getStringArray(0, length)) {
         final Set<Path> filesOnDisk = PathUtils.recursiveListFiles(new File(folderName).toPath());
-        //
-        // We collect and process all actions for each category of created, modified and deleted as it appears a first thread
-        // can start while a second thread can get through faster. If we do the collection for each category in a second
-        // thread can get to the processing of modifications before the first thread is finished processing creates.
-        // In this case the modification will not be reported correctly.
-        //
-        // NOTE: We are now using a hash to determine if a file is different because if modifications happens closely
-        // together the last modified time is not granular enough to be seen as a modification. This likely mitigates
-        // the issue I originally saw where the ordering was incorrect but I will leave the collection and processing
-        // of each category together.
-        //
+        /*
+         * We collect and process all actions for each category of created, modified and deleted as it appears a first thread
+         * can start while a second thread can get through faster. If we do the collection for each category in a second
+         * thread can get to the processing of modifications before the first thread is finished processing creates.
+         * In this case the modification will not be reported correctly.
+         *
+         * NOTE: We are now using a hash to determine if a file is different because if modifications happens closely
+         * together the last modified time is not granular enough to be seen as a modification. This likely mitigates
+         * the issue I originally saw where the ordering was incorrect but I will leave the collection and processing
+         * of each category together.
+         */
 
         for (Path file : findCreatedFiles(filesOnDisk)) {
           if (watchKey.isReportCreateEvents()) {

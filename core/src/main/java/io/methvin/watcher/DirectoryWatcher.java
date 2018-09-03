@@ -218,7 +218,9 @@ public class DirectoryWatcher {
           }
           Path childPath = eventPath == null ? null : keyRoots.get(key).resolve(eventPath);
           logger.debug("{} [{}]", kind, childPath);
-          // if directory is created, and watching recursively, then register it and its sub-directories
+          /*
+           * If a directory is created, and we're watching recursively, then register it and its sub-directories.
+           */
           if (kind == OVERFLOW) {
             listener.onEvent(new DirectoryChangeEvent(EventType.OVERFLOW, childPath, count));
           } else if (eventPath == null) {
@@ -228,8 +230,10 @@ public class DirectoryWatcher {
               if (!Boolean.TRUE.equals(fileTreeSupported)) {
                 registerAll(childPath);
               }
-              // Our custom Mac service sends subdirectory changes but the Windows/Linux do not.
-              // Walk the file tree to make sure we send create events for any files that were created.
+              /*
+               * Our custom Mac service sends subdirectory changes but the Windows/Linux do not.
+               * Walk the file tree to make sure we send create events for any files that were created.
+               */
               if (!isMac) {
                 Files.walkFileTree(childPath, new SimpleFileVisitor<Path>() {
                   @Override
@@ -250,12 +254,16 @@ public class DirectoryWatcher {
             notifyCreateEvent(childPath, count);
           } else if (kind == ENTRY_MODIFY) {
             if (fileHasher != null || Files.isDirectory(childPath)) {
-              // Note that existingHash may be null due to the file being created before we start listening
-              // It's important we don't discard the event in this case
+              /*
+               * Note that existingHash may be null due to the file being created before we start listening
+               * It's important we don't discard the event in this case
+               */
               HashCode existingHash = pathHashes.get(childPath);
 
-              // newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession
-              // in this case the MODIFY event can be safely ignored
+              /*
+               * newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession.
+               * In this case the MODIFY event can be safely ignored
+               */
               HashCode newHash = PathUtils.hash(fileHasher, childPath);
 
               if (newHash != null && !newHash.equals(existingHash)) {

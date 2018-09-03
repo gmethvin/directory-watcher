@@ -3,7 +3,6 @@ package io.methvin.watchservice;
 import io.methvin.watcher.DirectoryChangeEvent;
 import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
-import io.methvin.watcher.hashing.HashCode;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Assume;
@@ -24,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertTrue;
@@ -75,11 +75,11 @@ public class DirectoryWatcherOnDiskTest {
 
       assertTrue(
           "Create event for the parent directory was notified",
-          this.recorder.events.stream().anyMatch(
+          existsMatch(
               e -> e.eventType() == DirectoryChangeEvent.EventType.CREATE && e.path().getFileName().equals(parent.getFileName())));
       assertTrue(
           "Create event for the child file was notified",
-          this.recorder.events.stream().anyMatch(
+          existsMatch(
               e -> e.eventType() == DirectoryChangeEvent.EventType.CREATE && e.path().getFileName().equals(child.getFileName())));
 
     } finally {
@@ -120,12 +120,12 @@ public class DirectoryWatcherOnDiskTest {
 
       assertTrue(
           "Create event for the parent directory was notified",
-          this.recorder.events.stream().anyMatch(e ->
+          existsMatch(e ->
               e.eventType() == DirectoryChangeEvent.EventType.CREATE
                   && e.path().toString().endsWith(newParent.resolve(this.tmpDir.relativize(parent)).toString())));
       assertTrue(
           "Create event for the child file was notified",
-          this.recorder.events.stream().anyMatch(
+          existsMatch(
               e -> e.eventType() == DirectoryChangeEvent.EventType.CREATE
                   && e.path().toString().endsWith(newParent.resolve(this.tmpDir.relativize(child)).toString())));
 
@@ -166,7 +166,7 @@ public class DirectoryWatcherOnDiskTest {
 
       assertTrue(
           "Create event for the child file was notified",
-          this.recorder.events.stream().anyMatch(
+          existsMatch(
               e -> e.eventType() == DirectoryChangeEvent.EventType.CREATE && e.path().getFileName().equals(child.getFileName())));
 
     } finally {
@@ -214,6 +214,10 @@ public class DirectoryWatcherOnDiskTest {
         this.watcher.close();
       }
     }
+  }
+
+  private boolean existsMatch(Predicate<DirectoryChangeEvent> predicate) {
+    return this.recorder.events.stream().anyMatch(predicate);
   }
 
   class EventRecorder implements DirectoryChangeListener {
