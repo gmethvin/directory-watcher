@@ -19,6 +19,7 @@ class RecursiveFileMonitorSpec extends WordSpec with Matchers {
         println(msg)
         log = msg :: log
       }
+
       /***************************************************************************/
       val watcher = new RecursiveFileMonitor(file) {
         override def onCreate(file: File, count: Int) = output(s"$file got created $count time(s)")
@@ -30,6 +31,7 @@ class RecursiveFileMonitorSpec extends WordSpec with Matchers {
         }
       }
       watcher.start()
+
       /***************************************************************************/
       sleep()
       file.writeText("hello world"); sleep()
@@ -55,6 +57,7 @@ class RecursiveFileMonitorSpec extends WordSpec with Matchers {
         println(msg)
         log = msg :: log
       }
+
       /***************************************************************************/
       val watcher = new RecursiveFileMonitor(directory) {
         override def onCreate(file: File, count: Int) = output(s"$file got created $count time(s)")
@@ -66,6 +69,7 @@ class RecursiveFileMonitorSpec extends WordSpec with Matchers {
         }
       }
       watcher.start()
+
       /***************************************************************************/
       sleep(1.second)
       val f1 = (directory / "f1.txt").createIfNotExists()

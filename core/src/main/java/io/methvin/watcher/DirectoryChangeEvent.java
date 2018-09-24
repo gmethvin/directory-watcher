@@ -71,9 +71,7 @@ public final class DirectoryChangeEvent {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     DirectoryChangeEvent that = (DirectoryChangeEvent) o;
-    return count == that.count &&
-        eventType == that.eventType &&
-        Objects.equals(path, that.path);
+    return count == that.count && eventType == that.eventType && Objects.equals(path, that.path);
   }
 
   @Override
@@ -83,10 +81,13 @@ public final class DirectoryChangeEvent {
 
   @Override
   public String toString() {
-    return "DirectoryChangeEvent{" +
-        "eventType=" + eventType +
-        ", path=" + path +
-        ", count=" + count +
-        '}';
+    return "DirectoryChangeEvent{"
+        + "eventType="
+        + eventType
+        + ", path="
+        + path
+        + ", count="
+        + count
+        + '}';
   }
 }

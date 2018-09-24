@@ -200,7 +200,10 @@ public class Murmur3F implements Checksum {
   }
 
   @Override
-  /** Returns the lower 64 bits of the 128 bit hash (you can use just this value this as a 64 bit hash). */
+  /**
+   * Returns the lower 64 bits of the 128 bit hash (you can use just this value this as a 64 bit
+   * hash).
+   */
   public long getValue() {
     checkFinished();
     return finishedH1;
@@ -269,11 +272,13 @@ public class Murmur3F implements Checksum {
   }
 
   private long getLongLE(byte[] bytes, int index) {
-    return (bytes[index] & 0xff) | ((bytes[index + 1] & 0xff) << 8) |
-        ((bytes[index + 2] & 0xff) << 16) | ((bytes[index + 3] & 0xffL) << 24) |
-        ((bytes[index + 4] & 0xffL) << 32) | ((bytes[index + 5] & 0xffL) << 40) |
-        ((bytes[index + 6] & 0xffL) << 48) | (((long) bytes[index + 7]) << 56);
+    return (bytes[index] & 0xff)
+        | ((bytes[index + 1] & 0xff) << 8)
+        | ((bytes[index + 2] & 0xff) << 16)
+        | ((bytes[index + 3] & 0xffL) << 24)
+        | ((bytes[index + 4] & 0xffL) << 32)
+        | ((bytes[index + 5] & 0xffL) << 40)
+        | ((bytes[index + 6] & 0xffL) << 48)
+        | (((long) bytes[index + 7]) << 56);
   }
-
 }
-

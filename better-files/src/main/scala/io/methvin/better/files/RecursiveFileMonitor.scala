@@ -49,33 +49,31 @@ abstract class RecursiveFileMonitor(
 
   protected[this] val watcher: DirectoryWatcher = DirectoryWatcher.builder
     .paths(pathToWatch.fold(Collections.emptyList[Path]())(Collections.singletonList))
-    .listener(
-      new DirectoryChangeListener {
-        override def onEvent(event: DirectoryChangeEvent): Unit = {
-          if (reactTo(event.path)) {
-            val et = event.eventType
-            et match {
-              case EventType.OVERFLOW =>
-                onUnknownEvent(new WatchEvent[AnyRef] {
-                  override def kind = et.getWatchEventKind.asInstanceOf[WatchEvent.Kind[AnyRef]]
-                  override def count = event.count
-                  override def context = null
-                })
-              case _ =>
-                RecursiveFileMonitor.this.onEvent(
-                  et.getWatchEventKind.asInstanceOf[WatchEvent.Kind[Path]],
-                  File(event.path),
-                  event.count
-                )
-            }
+    .listener(new DirectoryChangeListener {
+      override def onEvent(event: DirectoryChangeEvent): Unit = {
+        if (reactTo(event.path)) {
+          val et = event.eventType
+          et match {
+            case EventType.OVERFLOW =>
+              onUnknownEvent(new WatchEvent[AnyRef] {
+                override def kind = et.getWatchEventKind.asInstanceOf[WatchEvent.Kind[AnyRef]]
+                override def count = event.count
+                override def context = null
+              })
+            case _ =>
+              RecursiveFileMonitor.this.onEvent(
+                et.getWatchEventKind.asInstanceOf[WatchEvent.Kind[Path]],
+                File(event.path),
+                event.count
+              )
           }
         }
-
-        override def onException(e: Exception): Unit = {
-          RecursiveFileMonitor.this.onException(e)
-        }
       }
-    )
+
+      override def onException(e: Exception): Unit = {
+        RecursiveFileMonitor.this.onException(e)
+      }
+    })
     .fileHasher(fileHasher.orNull)
     .logger(logger)
     .build()

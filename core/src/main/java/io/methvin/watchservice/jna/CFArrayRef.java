@@ -15,6 +15,4 @@ package io.methvin.watchservice.jna;
 
 import com.sun.jna.ptr.PointerByReference;
 
-public class CFArrayRef extends PointerByReference {
-
-}
+public class CFArrayRef extends PointerByReference {}

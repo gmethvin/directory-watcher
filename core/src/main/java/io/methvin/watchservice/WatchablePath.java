@@ -38,9 +38,8 @@ public class WatchablePath implements Watchable {
   }
 
   @Override
-  public WatchKey register(WatchService watcher,
-    WatchEvent.Kind<?>[] events,
-    WatchEvent.Modifier... modifiers)
+  public WatchKey register(
+      WatchService watcher, WatchEvent.Kind<?>[] events, WatchEvent.Modifier... modifiers)
       throws IOException {
     if (watcher == null) {
       throw new NullPointerException();
@@ -54,8 +53,7 @@ public class WatchablePath implements Watchable {
   private static final WatchEvent.Modifier[] NO_MODIFIERS = new WatchEvent.Modifier[0];
 
   @Override
-  public final WatchKey register(WatchService watcher,
-    WatchEvent.Kind<?>... events)
+  public final WatchKey register(WatchService watcher, WatchEvent.Kind<?>... events)
       throws IOException {
     if (!file.toFile().exists()) {
       throw new RuntimeException("Directory to watch doesn't exist: " + file);
@@ -65,8 +63,6 @@ public class WatchablePath implements Watchable {
 
   @Override
   public String toString() {
-    return "Path{" +
-      "file=" + file +
-      '}';
+    return "Path{" + "file=" + file + '}';
   }
 }

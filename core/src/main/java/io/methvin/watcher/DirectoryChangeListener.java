@@ -23,9 +23,7 @@ public interface DirectoryChangeListener {
 
   void onEvent(DirectoryChangeEvent event) throws IOException;
 
-  /**
-   * The watcher will stop watching after this method returns false.
-   */
+  /** The watcher will stop watching after this method returns false. */
   default boolean isWatching() {
     return true;
   }

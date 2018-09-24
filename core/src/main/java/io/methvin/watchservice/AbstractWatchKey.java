@@ -34,9 +34,7 @@ import io.methvin.watchservice.AbstractWatchService.Event;
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 import static java.util.Objects.requireNonNull;
 
-/**
- * Implementation of {@link WatchKey} for an {@link AbstractWatchService}.
- */
+/** Implementation of {@link WatchKey} for an {@link AbstractWatchService}. */
 class AbstractWatchKey implements WatchKey {
 
   private static WatchEvent<Object> overflowEvent(int count) {
@@ -54,11 +52,10 @@ class AbstractWatchKey implements WatchKey {
   private final BlockingQueue<WatchEvent<?>> events;
 
   public AbstractWatchKey(
-    AbstractWatchService watcher,
-    Watchable watchable,
-    Iterable<? extends WatchEvent.Kind<?>> subscribedTypes,
-    int queueSize
-  ) {
+      AbstractWatchService watcher,
+      Watchable watchable,
+      Iterable<? extends WatchEvent.Kind<?>> subscribedTypes,
+      int queueSize) {
     this.watcher = requireNonNull(watcher);
     this.watchable = watchable; // nullable for Watcher poison
     this.events = new ArrayBlockingQueue<>(queueSize);
@@ -68,23 +65,19 @@ class AbstractWatchKey implements WatchKey {
     this.subscribedTypes = Collections.unmodifiableSet(types);
   }
 
-  /**
-   * Gets the current state of this key, State.READY or SIGNALLED.
-   */
+  /** Gets the current state of this key, State.READY or SIGNALLED. */
   AbstractWatchKey.State state() {
     return state.get();
   }
 
-  /**
-   * Gets whether or not this key is subscribed to the given type of event.
-   */
+  /** Gets whether or not this key is subscribed to the given type of event. */
   public boolean subscribesTo(WatchEvent.Kind<?> eventType) {
     return subscribedTypes.contains(eventType);
   }
 
   /**
-   * Posts the given event to this key. After posting one or more events, {@link #signal()} must
-   * be called to cause the key to be enqueued with the watch service.
+   * Posts the given event to this key. After posting one or more events, {@link #signal()} must be
+   * called to cause the key to be enqueued with the watch service.
    */
   public void post(WatchEvent<?> event) {
     if (!events.offer(event)) {
@@ -93,8 +86,8 @@ class AbstractWatchKey implements WatchKey {
   }
 
   /**
-   * Sets the state to SIGNALLED and enqueues this key with the watcher if it was previously in
-   * the READY state.
+   * Sets the state to SIGNALLED and enqueues this key with the watcher if it was previously in the
+   * READY state.
    */
   public void signal() {
     if (state.getAndSet(State.SIGNALLED) == State.READY) {
@@ -147,7 +140,8 @@ class AbstractWatchKey implements WatchKey {
   }
 
   enum State {
-    READY, SIGNALLED
+    READY,
+    SIGNALLED
   }
 
   // WatchEvent not WatchEvent.Kind

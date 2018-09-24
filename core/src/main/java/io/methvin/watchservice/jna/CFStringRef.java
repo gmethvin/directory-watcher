@@ -22,5 +22,4 @@ public class CFStringRef extends PointerByReference {
     int length = chars.length;
     return CarbonAPI.INSTANCE.CFStringCreateWithCharacters(null, chars, CFIndex.valueOf(length));
   }
-
 }

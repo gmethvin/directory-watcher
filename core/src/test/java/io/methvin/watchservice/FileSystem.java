@@ -72,7 +72,10 @@ public class FileSystem {
     List<FileSystemAction> realActions = new ArrayList<FileSystemAction>();
     for (FileSystemAction a : actions) {
       if (a.myType == FileSystemAction.Type.COUNTABLE || a.myType == FileSystemAction.Type.MKDIR) {
-        System.out.println(String.format("adding action:%s:path:%s:myType:%s:", a.kind, (a.path != null) ? a.path : "", a.myType.name()));
+        System.out.println(
+            String.format(
+                "adding action:%s:path:%s:myType:%s:",
+                a.kind, (a.path != null) ? a.path : "", a.myType.name()));
         realActions.add(a);
       }
     }
@@ -111,7 +114,10 @@ public class FileSystem {
 
   public static class FileSystemAction {
     enum Type {
-      WAIT, MKDIR, COUNTABLE, NOOP
+      WAIT,
+      MKDIR,
+      COUNTABLE,
+      NOOP
     };
 
     final WatchEvent.Kind<Path> kind;
