@@ -14,6 +14,17 @@ developers in ThisBuild := List(
   Developer("gmethvin", "Greg Methvin", "greg@methvin.net", new URL("https://github.com/gmethvin"))
 )
 
+def commonSettings = Seq(
+  fork in Test := true,
+  javaOptions in Test ++= Seq(
+    "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
+  ),
+  libraryDependencies ++= Seq(
+    "com.novocode" % "junit-interface" % "0.11" % Test,
+    "org.slf4j" % "slf4j-simple" % "1.7.25" % Test,
+  )
+)
+
 // directory-watcher is a Java-only library. No Scala dependencies should be added.
 lazy val `directory-watcher` = (project in file("core"))
   .settings(commonSettings)
@@ -44,8 +55,6 @@ lazy val `directory-watcher-better-files` = (project in file("better-files"))
   )
   .dependsOn(`directory-watcher`)
 
-import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
-
 lazy val root = (project in file("."))
   .settings(
     PgpKeys.publishSigned := {},
@@ -56,6 +65,8 @@ lazy val root = (project in file("."))
   )
   .aggregate(`directory-watcher`, `directory-watcher-better-files`)
 
+scalafmtOnCompile in ThisBuild := true
+
 publishMavenStyle in ThisBuild := true
 publishTo in ThisBuild := Some(
   if (isSnapshot.value)
@@ -63,6 +74,8 @@ publishTo in ThisBuild := Some(
   else
     Opts.resolver.sonatypeStaging
 )
+
+import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
 
 releaseCrossBuild := true
 releaseProcess := Seq[ReleaseStep](
@@ -78,15 +91,4 @@ releaseProcess := Seq[ReleaseStep](
   commitNextVersion,
   releaseStepCommand("sonatypeReleaseAll"),
   pushChanges
-)
-
-def commonSettings = Seq(
-  fork in Test := true,
-  javaOptions in Test ++= Seq(
-    "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
-  ),
-  libraryDependencies ++= Seq(
-    "com.novocode" % "junit-interface" % "0.11" % Test,
-    "org.slf4j" % "slf4j-simple" % "1.7.25" % Test,
-  )
 )

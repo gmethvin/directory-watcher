@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -49,28 +49,23 @@ abstract class AbstractWatchService implements WatchService {
    * implementation just checks that the service is open and creates a key; subclasses may override
    * it to do other things as well.
    */
-  public abstract AbstractWatchKey register(WatchablePath watchable, Iterable<? extends WatchEvent.Kind<?>> eventTypes)
-    throws IOException;
+  public abstract AbstractWatchKey register(
+      WatchablePath watchable, Iterable<? extends WatchEvent.Kind<?>> eventTypes)
+      throws IOException;
 
-  /**
-   * Returns whether or not this watch service is open.
-   */
+  /** Returns whether or not this watch service is open. */
   public boolean isOpen() {
     return open.get();
   }
 
-  /**
-   * Enqueues the given key if the watch service is open; does nothing otherwise.
-   */
+  /** Enqueues the given key if the watch service is open; does nothing otherwise. */
   final void enqueue(AbstractWatchKey key) {
     if (isOpen()) {
       queue.add(key);
     }
   }
 
-  /**
-   * Called when the given key is cancelled. Does nothing by default.
-   */
+  /** Called when the given key is cancelled. Does nothing by default. */
   public void cancelled(AbstractWatchKey key) {}
 
   @Override
@@ -91,9 +86,7 @@ abstract class AbstractWatchService implements WatchService {
     return check(queue.take());
   }
 
-  /**
-   * Returns the given key, throwing an exception if it's the poison.
-   */
+  /** Returns the given key, throwing an exception if it's the poison. */
   private WatchKey check(WatchKey key) {
     if (key == poison) {
       // ensure other blocking threads get the poison
@@ -103,9 +96,7 @@ abstract class AbstractWatchService implements WatchService {
     return key;
   }
 
-  /**
-   * Checks that the watch service is open, throwing {@link ClosedWatchServiceException} if not.
-   */
+  /** Checks that the watch service is open, throwing {@link ClosedWatchServiceException} if not. */
   protected final void checkOpen() {
     if (!open.get()) {
       throw new ClosedWatchServiceException();
@@ -120,9 +111,7 @@ abstract class AbstractWatchService implements WatchService {
     }
   }
 
-  /**
-   * A basic implementation of {@link WatchEvent}.
-   */
+  /** A basic implementation of {@link WatchEvent}. */
   static final class Event<T> implements WatchEvent<T> {
 
     private final Kind<T> kind;
@@ -159,8 +148,8 @@ abstract class AbstractWatchService implements WatchService {
       if (obj instanceof Event) {
         Event<?> other = (Event<?>) obj;
         return kind().equals(other.kind())
-          && count() == other.count()
-          && Objects.equals(context(), other.context());
+            && count() == other.count()
+            && Objects.equals(context(), other.context());
       }
       return false;
     }
@@ -173,10 +162,10 @@ abstract class AbstractWatchService implements WatchService {
     @Override
     public String toString() {
       return new StringJoiner(", ", getClass().getSimpleName() + "[", "]")
-        .add("kind=" + kind())
-        .add("count=" + count())
-        .add("context=" + context())
-        .toString();
+          .add("kind=" + kind())
+          .add("count=" + count())
+          .add("context=" + context())
+          .toString();
     }
   }
 }

@@ -31,8 +31,8 @@ public class DirectoryWatcherTest {
     FileUtils.deleteDirectory(directory);
     directory.mkdirs();
     MacOSXListeningWatchService service = new MacOSXListeningWatchService();
-    MacOSXWatchKey key = new MacOSXWatchKey(service,
-        ImmutableList.of(ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY), 16);
+    MacOSXWatchKey key =
+        new MacOSXWatchKey(service, ImmutableList.of(ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY), 16);
     int totalEvents = 0;
     for (int i = 0; i < 10; i++) {
       Path toSignal = Paths.get(directory.toPath().toAbsolutePath().toString() + "/" + i);
@@ -50,7 +50,8 @@ public class DirectoryWatcherTest {
       }
     }
     assertTrue("OVERFLOW event must exist", overflowCount > 0);
-    assertTrue("Overflow count must equal number of missing events",
+    assertTrue(
+        "Overflow count must equal number of missing events",
         totalEvents == events.size() + overflowCount - 1);
   }
 
@@ -72,23 +73,22 @@ public class DirectoryWatcherTest {
     FileUtils.deleteDirectory(directory);
     directory.mkdirs();
 
-    //make a dir before the watch is started
+    // make a dir before the watch is started
     File zupDir = Paths.get(directory.toString(), "zup").toFile();
     zupDir.mkdir();
 
     assertTrue(zupDir.exists());
 
-    //prep a new file for the watched directory
+    // prep a new file for the watched directory
     File fileInZupDir = new File(zupDir, "fileInZupDir.txt");
     assertFalse(fileInZupDir.exists());
 
-    //write it to the zup subdirectory of the watched directory
+    // write it to the zup subdirectory of the watched directory
     Files.write(fileInZupDir.toPath(), "some data".getBytes());
     assertTrue(fileInZupDir.exists());
 
-    //files are written and done, now start the watcher
+    // files are written and done, now start the watcher
     runWatcher(directory.toPath(), new MacOSXListeningWatchService());
-
   }
 
   @Test
@@ -112,37 +112,39 @@ public class DirectoryWatcherTest {
     // appears to not see them because the create/delete pair happen so fast it's like the file
     // is never there at all.
     int waitInMs = 500;
-    FileSystem fileSystem = new FileSystem(directory)
-      .create("one.txt")
-      .wait(waitInMs)
-      .create("two.txt")
-      .wait(waitInMs)
-      .create("three.txt")
-      .wait(waitInMs)
-      .update("three.txt", " 111111")
-      .wait(waitInMs)
-      .update("three.txt", " 222222")
-      .wait(waitInMs)
-      .delete("one.txt")
-      .wait(waitInMs)
-      .directory("testDir")
-      .wait(waitInMs)
-      .create("testDir/file1InDir.txt")
-      .wait(waitInMs)
-      .create("testDir/file2InDir.txt", " 111111")
-      .wait(waitInMs)
-      .update("testDir/file2InDir.txt", " 222222")
-      .wait(waitInMs);
+    FileSystem fileSystem =
+        new FileSystem(directory)
+            .create("one.txt")
+            .wait(waitInMs)
+            .create("two.txt")
+            .wait(waitInMs)
+            .create("three.txt")
+            .wait(waitInMs)
+            .update("three.txt", " 111111")
+            .wait(waitInMs)
+            .update("three.txt", " 222222")
+            .wait(waitInMs)
+            .delete("one.txt")
+            .wait(waitInMs)
+            .directory("testDir")
+            .wait(waitInMs)
+            .create("testDir/file1InDir.txt")
+            .wait(waitInMs)
+            .create("testDir/file2InDir.txt", " 111111")
+            .wait(waitInMs)
+            .update("testDir/file2InDir.txt", " 222222")
+            .wait(waitInMs);
     // Collect our filesystem actions
     List<FileSystemAction> actions = fileSystem.actions();
 
     TestDirectoryChangeListener listener = new TestDirectoryChangeListener(directory, actions);
-    DirectoryWatcher watcher = DirectoryWatcher.builder()
-        .path(directory)
-        .listener(listener)
-        .watchService(watchService)
-        .fileHashing(true)
-        .build();
+    DirectoryWatcher watcher =
+        DirectoryWatcher.builder()
+            .path(directory)
+            .listener(listener)
+            .watchService(watchService)
+            .fileHashing(true)
+            .build();
     // Fire up the filesystem watcher
     CompletableFuture<Void> future = watcher.watchAsync();
     // Play our filesystem events
@@ -190,7 +192,6 @@ public class DirectoryWatcherTest {
     assertEquals("five.size", 2, five.size());
     assertEquals(three.get(0), actions.get(8).kind);
     assertEquals(three.get(1), actions.get(9).kind);
-
   }
 
   class TestDirectoryChangeListener implements DirectoryChangeListener {

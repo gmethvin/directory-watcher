@@ -39,7 +39,8 @@ import static java.nio.file.StandardWatchEventKinds.*;
 public class DirectoryWatcher {
 
   /**
-   * A builder for a {@link DirectoryWatcher}. Use {@code DirectoryWatcher.builder()} to get a new instance.
+   * A builder for a {@link DirectoryWatcher}. Use {@code DirectoryWatcher.builder()} to get a new
+   * instance.
    */
   public static final class Builder {
     private List<Path> paths = Collections.emptyList();
@@ -50,24 +51,18 @@ public class DirectoryWatcher {
 
     private Builder() {}
 
-    /**
-     * Set multiple paths to watch.
-     */
+    /** Set multiple paths to watch. */
     public Builder paths(List<Path> paths) {
       this.paths = paths;
       return this;
     }
 
-    /**
-     * Set a single path to watch.
-     */
+    /** Set a single path to watch. */
     public Builder path(Path path) {
       return paths(Collections.singletonList(path));
     }
 
-    /**
-     * Set a listener that will be called when a directory change event occurs.
-     */
+    /** Set a listener that will be called when a directory change event occurs. */
     public Builder listener(DirectoryChangeListener listener) {
       this.listener = listener;
       return this;
@@ -76,7 +71,8 @@ public class DirectoryWatcher {
     /**
      * Set a {@link WatchService} implementation that will be used by the watcher.
      *
-     * By default, this detects your OS and either uses the native JVM watcher or the macOS watcher.
+     * <p>By default, this detects your OS and either uses the native JVM watcher or the macOS
+     * watcher.
      */
     public Builder watchService(WatchService watchService) {
       this.watchService = watchService;
@@ -84,7 +80,8 @@ public class DirectoryWatcher {
     }
 
     /**
-     * Set a logger to be used by the watcher. This defaults to {@code LoggerFactory.getLogger(DirectoryWatcher.class)}
+     * Set a logger to be used by the watcher. This defaults to {@code
+     * LoggerFactory.getLogger(DirectoryWatcher.class)}
      */
     public Builder logger(Logger logger) {
       this.logger = logger;
@@ -92,7 +89,8 @@ public class DirectoryWatcher {
     }
 
     /**
-     * Defines whether file hashing should be used to catch duplicate events. Defaults to {@code true}.
+     * Defines whether file hashing should be used to catch duplicate events. Defaults to {@code
+     * true}.
      */
     public Builder fileHashing(boolean enabled) {
       this.fileHasher = enabled ? FileHasher.DEFAULT_FILE_HASHER : null;
@@ -102,13 +100,13 @@ public class DirectoryWatcher {
     /**
      * Defines the file hasher to be used by the watcher.
      *
-     * Note: will implicitly enable file hashing. Setting to null is equivalent to {@code fileHashing(false)}
+     * <p>Note: will implicitly enable file hashing. Setting to null is equivalent to {@code
+     * fileHashing(false)}
      */
     public Builder fileHasher(FileHasher fileHasher) {
       this.fileHasher = fileHasher;
       return this;
     }
-
 
     public DirectoryWatcher build() throws IOException {
       if (watchService == null) {
@@ -122,7 +120,8 @@ public class DirectoryWatcher {
 
     private Builder osDefaultWatchService() throws IOException {
       boolean isMac = System.getProperty("os.name").toLowerCase().contains("mac");
-      return watchService(isMac ? new MacOSXListeningWatchService() : FileSystems.getDefault().newWatchService());
+      return watchService(
+          isMac ? new MacOSXListeningWatchService() : FileSystems.getDefault().newWatchService());
     }
 
     private Builder staticLogger() {
@@ -130,9 +129,7 @@ public class DirectoryWatcher {
     }
   }
 
-  /**
-   * Get a new builder for a {@link DirectoryWatcher}.
-   */
+  /** Get a new builder for a {@link DirectoryWatcher}. */
   public static Builder builder() {
     return new Builder();
   }
@@ -155,8 +152,8 @@ public class DirectoryWatcher {
       DirectoryChangeListener listener,
       WatchService watchService,
       FileHasher fileHasher,
-      Logger logger
-  ) throws IOException {
+      Logger logger)
+      throws IOException {
     this.paths = paths;
     this.listener = listener;
     this.watchService = watchService;
@@ -184,17 +181,20 @@ public class DirectoryWatcher {
    * @param executor the executor to use to watch asynchronously
    */
   public CompletableFuture<Void> watchAsync(Executor executor) {
-    return CompletableFuture.supplyAsync(() -> {
-      watch();
-      return null;
-    }, executor);
+    return CompletableFuture.supplyAsync(
+        () -> {
+          watch();
+          return null;
+        },
+        executor);
   }
 
   /**
-   * Watch the directories. Block until either the listener stops watching or the DirectoryWatcher is closed.
+   * Watch the directories. Block until either the listener stops watching or the DirectoryWatcher
+   * is closed.
    */
   public void watch() {
-    for (;;) {
+    for (; ; ) {
       if (!listener.isWatching()) {
         return;
       }
@@ -218,7 +218,9 @@ public class DirectoryWatcher {
           }
           Path childPath = eventPath == null ? null : keyRoots.get(key).resolve(eventPath);
           logger.debug("{} [{}]", kind, childPath);
-          // if directory is created, and watching recursively, then register it and its sub-directories
+          /*
+           * If a directory is created, and we're watching recursively, then register it and its sub-directories.
+           */
           if (kind == OVERFLOW) {
             listener.onEvent(new DirectoryChangeEvent(EventType.OVERFLOW, childPath, count));
           } else if (eventPath == null) {
@@ -228,41 +230,51 @@ public class DirectoryWatcher {
               if (!Boolean.TRUE.equals(fileTreeSupported)) {
                 registerAll(childPath);
               }
-              // Our custom Mac service sends subdirectory changes but the Windows/Linux do not.
-              // Walk the file tree to make sure we send create events for any files that were created.
+              /*
+               * Our custom Mac service sends subdirectory changes but the Windows/Linux do not.
+               * Walk the file tree to make sure we send create events for any files that were created.
+               */
               if (!isMac) {
-                Files.walkFileTree(childPath, new SimpleFileVisitor<Path>() {
-                  @Override
-                  public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-                    notifyCreateEvent(dir, count);
-                    return FileVisitResult.CONTINUE;
-                  }
+                Files.walkFileTree(
+                    childPath,
+                    new SimpleFileVisitor<Path>() {
+                      @Override
+                      public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+                          throws IOException {
+                        notifyCreateEvent(dir, count);
+                        return FileVisitResult.CONTINUE;
+                      }
 
-                  @Override
-                  public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    notifyCreateEvent(file, count);
-                    return FileVisitResult.CONTINUE;
-                  }
-
-                });
+                      @Override
+                      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+                          throws IOException {
+                        notifyCreateEvent(file, count);
+                        return FileVisitResult.CONTINUE;
+                      }
+                    });
               }
             }
             notifyCreateEvent(childPath, count);
           } else if (kind == ENTRY_MODIFY) {
             if (fileHasher != null || Files.isDirectory(childPath)) {
-              // Note that existingHash may be null due to the file being created before we start listening
-              // It's important we don't discard the event in this case
+              /*
+               * Note that existingHash may be null due to the file being created before we start listening
+               * It's important we don't discard the event in this case
+               */
               HashCode existingHash = pathHashes.get(childPath);
 
-              // newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession
-              // in this case the MODIFY event can be safely ignored
+              /*
+               * newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession.
+               * In this case the MODIFY event can be safely ignored
+               */
               HashCode newHash = PathUtils.hash(fileHasher, childPath);
 
               if (newHash != null && !newHash.equals(existingHash)) {
                 pathHashes.put(childPath, newHash);
                 listener.onEvent(new DirectoryChangeEvent(EventType.MODIFY, childPath, count));
               } else if (newHash == null) {
-                logger.debug("Failed to hash modified file [{}]. It may have been deleted.", childPath);
+                logger.debug(
+                    "Failed to hash modified file [{}]. It may have been deleted.", childPath);
               }
             } else {
               listener.onEvent(new DirectoryChangeEvent(EventType.MODIFY, childPath, count));
@@ -290,7 +302,6 @@ public class DirectoryWatcher {
     }
   }
 
-
   public DirectoryChangeListener getListener() {
     return listener;
   }
@@ -315,13 +326,16 @@ public class DirectoryWatcher {
       }
     } else {
       // Since FILE_TREE is unsupported, register root directory and sub-directories
-      Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
-        @Override
-        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-          register(dir, false);
-          return FileVisitResult.CONTINUE;
-        }
-      });
+      Files.walkFileTree(
+          start,
+          new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+                throws IOException {
+              register(dir, false);
+              return FileVisitResult.CONTINUE;
+            }
+          });
     }
   }
 
@@ -329,10 +343,12 @@ public class DirectoryWatcher {
   private void register(Path directory, boolean useFileTreeModifier) throws IOException {
     logger.debug("Registering [{}].", directory);
     Watchable watchable = isMac ? new WatchablePath(directory) : directory;
-    WatchEvent.Modifier[] modifiers = useFileTreeModifier
-        ? new WatchEvent.Modifier[] {ExtendedWatchEventModifier.FILE_TREE}
-        : new WatchEvent.Modifier[] {};
-    WatchEvent.Kind<?>[] kinds = new WatchEvent.Kind<?>[] {ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY};
+    WatchEvent.Modifier[] modifiers =
+        useFileTreeModifier
+            ? new WatchEvent.Modifier[] {ExtendedWatchEventModifier.FILE_TREE}
+            : new WatchEvent.Modifier[] {};
+    WatchEvent.Kind<?>[] kinds =
+        new WatchEvent.Kind<?>[] {ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY};
     WatchKey watchKey = watchable.register(watchService, kinds, modifiers);
     keyRoots.put(watchKey, directory);
   }
@@ -355,5 +371,4 @@ public class DirectoryWatcher {
       listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
     }
   }
-
 }

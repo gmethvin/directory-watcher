@@ -3,7 +3,6 @@ package io.methvin.watchservice;
 import io.methvin.watcher.DirectoryChangeEvent;
 import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
-import io.methvin.watcher.hashing.HashCode;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Assume;
@@ -24,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertTrue;
@@ -46,20 +46,33 @@ public class DirectoryWatcherOnDiskTest {
   }
 
   @Test
-  public void copySubDirectoryFromOutsideNoHashing() throws IOException, ExecutionException, InterruptedException {
-    this.watcher = DirectoryWatcher.builder().path(this.tmpDir).listener(this.recorder).fileHashing(false).build();
+  public void copySubDirectoryFromOutsideNoHashing()
+      throws IOException, ExecutionException, InterruptedException {
+    this.watcher =
+        DirectoryWatcher.builder()
+            .path(this.tmpDir)
+            .listener(this.recorder)
+            .fileHashing(false)
+            .build();
     copySubDirectoryFromOutside();
     this.watcher.close();
   }
 
   @Test
-  public void copySubDirectoryFromOutsideWithHashing() throws IOException, ExecutionException, InterruptedException {
-    this.watcher = DirectoryWatcher.builder().path(this.tmpDir).listener(this.recorder).fileHashing(true).build();
+  public void copySubDirectoryFromOutsideWithHashing()
+      throws IOException, ExecutionException, InterruptedException {
+    this.watcher =
+        DirectoryWatcher.builder()
+            .path(this.tmpDir)
+            .listener(this.recorder)
+            .fileHashing(true)
+            .build();
     copySubDirectoryFromOutside();
     this.watcher.close();
   }
 
-  private void copySubDirectoryFromOutside() throws IOException, InterruptedException, ExecutionException {
+  private void copySubDirectoryFromOutside()
+      throws IOException, InterruptedException, ExecutionException {
     final CompletableFuture future = this.watcher.watchAsync();
     final Path parent = Files.createTempDirectory("parent-");
     final Path child = Files.createTempFile(parent, "child-", ".dat");
@@ -75,12 +88,16 @@ public class DirectoryWatcherOnDiskTest {
 
       assertTrue(
           "Create event for the parent directory was notified",
-          this.recorder.events.stream().anyMatch(
-              e -> e.eventType() == DirectoryChangeEvent.EventType.CREATE && e.path().getFileName().equals(parent.getFileName())));
+          existsMatch(
+              e ->
+                  e.eventType() == DirectoryChangeEvent.EventType.CREATE
+                      && e.path().getFileName().equals(parent.getFileName())));
       assertTrue(
           "Create event for the child file was notified",
-          this.recorder.events.stream().anyMatch(
-              e -> e.eventType() == DirectoryChangeEvent.EventType.CREATE && e.path().getFileName().equals(child.getFileName())));
+          existsMatch(
+              e ->
+                  e.eventType() == DirectoryChangeEvent.EventType.CREATE
+                      && e.path().getFileName().equals(child.getFileName())));
 
     } finally {
       if (Files.exists(parent)) {
@@ -90,15 +107,27 @@ public class DirectoryWatcherOnDiskTest {
   }
 
   @Test
-  public void moveSubDirectoryNoHashing() throws IOException, ExecutionException, InterruptedException {
-    this.watcher = DirectoryWatcher.builder().path(this.tmpDir).listener(this.recorder).fileHashing(false).build();
+  public void moveSubDirectoryNoHashing()
+      throws IOException, ExecutionException, InterruptedException {
+    this.watcher =
+        DirectoryWatcher.builder()
+            .path(this.tmpDir)
+            .listener(this.recorder)
+            .fileHashing(false)
+            .build();
     moveSubDirectory();
     this.watcher.close();
   }
 
   @Test
-  public void moveSubDirectoryWithHashing() throws IOException, ExecutionException, InterruptedException {
-    this.watcher = DirectoryWatcher.builder().path(this.tmpDir).listener(this.recorder).fileHashing(true).build();
+  public void moveSubDirectoryWithHashing()
+      throws IOException, ExecutionException, InterruptedException {
+    this.watcher =
+        DirectoryWatcher.builder()
+            .path(this.tmpDir)
+            .listener(this.recorder)
+            .fileHashing(true)
+            .build();
     moveSubDirectory();
     this.watcher.close();
   }
@@ -120,14 +149,20 @@ public class DirectoryWatcherOnDiskTest {
 
       assertTrue(
           "Create event for the parent directory was notified",
-          this.recorder.events.stream().anyMatch(e ->
-              e.eventType() == DirectoryChangeEvent.EventType.CREATE
-                  && e.path().toString().endsWith(newParent.resolve(this.tmpDir.relativize(parent)).toString())));
+          existsMatch(
+              e ->
+                  e.eventType() == DirectoryChangeEvent.EventType.CREATE
+                      && e.path()
+                          .toString()
+                          .endsWith(newParent.resolve(this.tmpDir.relativize(parent)).toString())));
       assertTrue(
           "Create event for the child file was notified",
-          this.recorder.events.stream().anyMatch(
-              e -> e.eventType() == DirectoryChangeEvent.EventType.CREATE
-                  && e.path().toString().endsWith(newParent.resolve(this.tmpDir.relativize(child)).toString())));
+          existsMatch(
+              e ->
+                  e.eventType() == DirectoryChangeEvent.EventType.CREATE
+                      && e.path()
+                          .toString()
+                          .endsWith(newParent.resolve(this.tmpDir.relativize(child)).toString())));
 
     } finally {
       if (Files.exists(parent)) {
@@ -140,10 +175,16 @@ public class DirectoryWatcherOnDiskTest {
   }
 
   @Test
-  public void emitCreateEventWhenFileLockedNoHashing() throws IOException, ExecutionException, InterruptedException {
+  public void emitCreateEventWhenFileLockedNoHashing()
+      throws IOException, ExecutionException, InterruptedException {
     Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("win"));
 
-    this.watcher = DirectoryWatcher.builder().path(this.tmpDir).listener(this.recorder).fileHashing(false).build();
+    this.watcher =
+        DirectoryWatcher.builder()
+            .path(this.tmpDir)
+            .listener(this.recorder)
+            .fileHashing(false)
+            .build();
     final CompletableFuture future = this.watcher.watchAsync();
     Random random = new Random();
     int i = random.nextInt(100_000);
@@ -166,8 +207,10 @@ public class DirectoryWatcherOnDiskTest {
 
       assertTrue(
           "Create event for the child file was notified",
-          this.recorder.events.stream().anyMatch(
-              e -> e.eventType() == DirectoryChangeEvent.EventType.CREATE && e.path().getFileName().equals(child.getFileName())));
+          existsMatch(
+              e ->
+                  e.eventType() == DirectoryChangeEvent.EventType.CREATE
+                      && e.path().getFileName().equals(child.getFileName())));
 
     } finally {
       if (lock != null && channel != null && channel.isOpen()) {
@@ -181,10 +224,17 @@ public class DirectoryWatcherOnDiskTest {
   }
 
   @Test
-  public void doNotEmitCreateEventWhenFileLockedWithHashing() throws IOException, ExecutionException, InterruptedException {
-    // This test confirms our assumption that on Windows we lose the event when the hashed file is locked.
+  public void doNotEmitCreateEventWhenFileLockedWithHashing()
+      throws IOException, ExecutionException, InterruptedException {
+    // This test confirms our assumption that on Windows we lose the event when the hashed file is
+    // locked.
     Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("win"));
-    this.watcher = DirectoryWatcher.builder().path(this.tmpDir).listener(this.recorder).fileHashing(true).build();
+    this.watcher =
+        DirectoryWatcher.builder()
+            .path(this.tmpDir)
+            .listener(this.recorder)
+            .fileHashing(true)
+            .build();
     final CompletableFuture future = this.watcher.watchAsync();
     Random random = new Random();
     int i = random.nextInt(100_000);
@@ -216,6 +266,10 @@ public class DirectoryWatcherOnDiskTest {
     }
   }
 
+  private boolean existsMatch(Predicate<DirectoryChangeEvent> predicate) {
+    return this.recorder.events.stream().anyMatch(predicate);
+  }
+
   class EventRecorder implements DirectoryChangeListener {
 
     private List<DirectoryChangeEvent> events = new ArrayList<>();
@@ -224,7 +278,5 @@ public class DirectoryWatcherOnDiskTest {
     public void onEvent(DirectoryChangeEvent event) {
       this.events.add(event);
     }
-
   }
-
 }

@@ -17,9 +17,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Formatter;
 
-/**
- * A class representing the hash code of a file.
- */
+/** A class representing the hash code of a file. */
 public class HashCode {
   private final byte[] value;
 

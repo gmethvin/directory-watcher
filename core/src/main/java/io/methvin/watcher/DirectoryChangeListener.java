@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -23,9 +23,7 @@ public interface DirectoryChangeListener {
 
   void onEvent(DirectoryChangeEvent event) throws IOException;
 
-  /**
-   * The watcher will stop watching after this method returns false.
-   */
+  /** The watcher will stop watching after this method returns false. */
   default boolean isWatching() {
     return true;
   }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -28,47 +28,44 @@ import java.util.*;
 
 import static java.nio.file.StandardWatchEventKinds.*;
 
-
 /**
- * This class contains the bulk of my implementation of the Watch Service API. It hooks into Carbon's
- * File System Events API.
+ * This class contains the bulk of my implementation of the Watch Service API. It hooks into
+ * Carbon's File System Events API.
  *
  * @author Steve McLeod
  * @author Greg Methvin
  */
 public class MacOSXListeningWatchService extends AbstractWatchService {
 
-  /**
-   * Configuration for the watch service.
-   */
+  /** Configuration for the watch service. */
   public interface Config {
 
     double DEFAULT_LATENCY = 0.5;
     int DEFAULT_QUEUE_SIZE = 1024;
 
-    /**
-     * The maximum number of seconds to wait after hearing about an event
-     */
+    /** The maximum number of seconds to wait after hearing about an event */
     default double latency() {
       return DEFAULT_LATENCY;
     }
 
-    /**
-     * The size of the queue used for each WatchKey
-     */
+    /** The size of the queue used for each WatchKey */
     default int queueSize() {
       return DEFAULT_QUEUE_SIZE;
     }
 
     /**
-     * The file hasher to use to verify files. If null, this will use the default directory-watcher hasher.
+     * The file hasher to use to verify files. If null, this will use the default directory-watcher
+     * hasher.
      */
-    default FileHasher fileHasher() { return null; }
+    default FileHasher fileHasher() {
+      return null;
+    }
   }
 
   // need to keep reference to callbacks to prevent garbage collection
   @SuppressWarnings({"MismatchedQueryAndUpdateOfCollection"})
   private final List<CarbonAPI.FSEventStreamCallback> callbackList = new ArrayList<>();
+
   private final List<CFRunLoopThread> threadList = new ArrayList<>();
   private final Set<Path> pathsWatching = new HashSet<>();
 
@@ -80,7 +77,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     this.latency = config.latency();
     this.queueSize = config.queueSize();
 
-    // File hasher cannot be null, because the MacOS watcher depends on those hashes to work properly.
+    // File hasher cannot be null, because this watch service depends on hashes to work properly.
     FileHasher fileHasher = config.fileHasher();
     this.fileHasher = fileHasher == null ? FileHasher.DEFAULT_FILE_HASHER : fileHasher;
   }
@@ -90,30 +87,34 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
   }
 
   @Override
-  public AbstractWatchKey register(WatchablePath watchable, Iterable<? extends WatchEvent.Kind<?>> events) throws IOException {
+  public AbstractWatchKey register(
+      WatchablePath watchable, Iterable<? extends WatchEvent.Kind<?>> events) throws IOException {
     checkOpen();
     final MacOSXWatchKey watchKey = new MacOSXWatchKey(this, events, queueSize);
     final Path file = watchable.getFile();
     // if we are already watching a parent of this directory, do nothing.
-    for (Path watchedPath: pathsWatching) {
+    for (Path watchedPath : pathsWatching) {
       if (file.startsWith(watchedPath)) return watchKey;
     }
     final Map<Path, HashCode> hashCodeMap = PathUtils.createHashCodeMap(file, fileHasher);
     final String s = file.toFile().getAbsolutePath();
     final Pointer[] values = {CFStringRef.toCFString(s).getPointer()};
-    final CFArrayRef pathsToWatch = CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);
+    final CFArrayRef pathsToWatch =
+        CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);
     final long kFSEventStreamEventIdSinceNow = -1; //  this is 0xFFFFFFFFFFFFFFFF
     final int kFSEventStreamCreateFlagNoDefer = 0x00000002;
-    final CarbonAPI.FSEventStreamCallback callback = new MacOSXListeningCallback(watchKey, fileHasher, hashCodeMap);
+    final CarbonAPI.FSEventStreamCallback callback =
+        new MacOSXListeningCallback(watchKey, fileHasher, hashCodeMap);
     callbackList.add(callback);
-    final FSEventStreamRef stream = CarbonAPI.INSTANCE.FSEventStreamCreate(
-      Pointer.NULL,
-      callback,
-      Pointer.NULL,
-      pathsToWatch,
-      kFSEventStreamEventIdSinceNow,
-      latency,
-      kFSEventStreamCreateFlagNoDefer);
+    final FSEventStreamRef stream =
+        CarbonAPI.INSTANCE.FSEventStreamCreate(
+            Pointer.NULL,
+            callback,
+            Pointer.NULL,
+            pathsToWatch,
+            kFSEventStreamEventIdSinceNow,
+            latency,
+            kFSEventStreamCreateFlagNoDefer);
 
     final CFRunLoopThread thread = new CFRunLoopThread(stream, file.toFile());
     thread.setDaemon(true);
@@ -167,30 +168,36 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     private final Map<Path, HashCode> hashCodeMap;
     private final FileHasher fileHasher;
 
-    private MacOSXListeningCallback(MacOSXWatchKey watchKey, FileHasher fileHasher, Map<Path, HashCode> hashCodeMap) {
+    private MacOSXListeningCallback(
+        MacOSXWatchKey watchKey, FileHasher fileHasher, Map<Path, HashCode> hashCodeMap) {
       this.watchKey = watchKey;
       this.hashCodeMap = hashCodeMap;
       this.fileHasher = fileHasher;
     }
 
     @Override
-    public void invoke(FSEventStreamRef streamRef, Pointer clientCallBackInfo, NativeLong numEvents, Pointer eventPaths, Pointer /* array of unsigned int */ eventFlags,
-      /* array of unsigned long */ Pointer eventIds) {
+    public void invoke(
+        FSEventStreamRef streamRef,
+        Pointer clientCallBackInfo,
+        NativeLong numEvents,
+        Pointer eventPaths,
+        Pointer /* array of unsigned int */ eventFlags,
+        /* array of unsigned long */ Pointer eventIds) {
       final int length = numEvents.intValue();
 
       for (String folderName : eventPaths.getStringArray(0, length)) {
         final Set<Path> filesOnDisk = PathUtils.recursiveListFiles(new File(folderName).toPath());
-        //
-        // We collect and process all actions for each category of created, modified and deleted as it appears a first thread
-        // can start while a second thread can get through faster. If we do the collection for each category in a second
-        // thread can get to the processing of modifications before the first thread is finished processing creates.
-        // In this case the modification will not be reported correctly.
-        //
-        // NOTE: We are now using a hash to determine if a file is different because if modifications happens closely
-        // together the last modified time is not granular enough to be seen as a modification. This likely mitigates
-        // the issue I originally saw where the ordering was incorrect but I will leave the collection and processing
-        // of each category together.
-        //
+        /*
+         * We collect and process all actions for each category of created, modified and deleted as it appears a first thread
+         * can start while a second thread can get through faster. If we do the collection for each category in a second
+         * thread can get to the processing of modifications before the first thread is finished processing creates.
+         * In this case the modification will not be reported correctly.
+         *
+         * NOTE: We are now using a hash to determine if a file is different because if modifications happens closely
+         * together the last modified time is not granular enough to be seen as a modification. This likely mitigates
+         * the issue I originally saw where the ordering was incorrect but I will leave the collection and processing
+         * of each category together.
+         */
 
         for (Path file : findCreatedFiles(filesOnDisk)) {
           if (watchKey.isReportCreateEvents()) {
