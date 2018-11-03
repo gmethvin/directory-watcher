@@ -1,4 +1,3 @@
-
 organization in ThisBuild := "io.methvin"
 licenses in ThisBuild := Seq(
   "Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html")
@@ -14,14 +13,24 @@ developers in ThisBuild := List(
   Developer("gmethvin", "Greg Methvin", "greg@methvin.net", new URL("https://github.com/gmethvin"))
 )
 
+scalafmtOnCompile in ThisBuild := true
+
+publishMavenStyle in ThisBuild := true
+publishTo in ThisBuild := Some(
+  if (isSnapshot.value)
+    Opts.resolver.sonatypeSnapshots
+  else
+    Opts.resolver.sonatypeStaging
+)
+
 def commonSettings = Seq(
   fork in Test := true,
-  javaOptions in Test ++= Seq(
-    "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
-  ),
+  javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint"),
+  scalacOptions += "-target:jvm-1.8",
+  javaOptions in Test ++= Seq("-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"),
   libraryDependencies ++= Seq(
     "com.novocode" % "junit-interface" % "0.11" % Test,
-    "org.slf4j" % "slf4j-simple" % "1.7.25" % Test,
+    "org.slf4j" % "slf4j-simple" % "1.7.25" % Test
   )
 )
 
@@ -34,7 +43,6 @@ lazy val `directory-watcher` = (project in file("core"))
     libraryDependencies ++= Seq(
       "net.java.dev.jna" % "jna" % "5.0.0",
       "org.slf4j" % "slf4j-api" % "1.7.25",
-
       "io.airlift" % "command" % "0.3" % Test,
       "com.google.guava" % "guava" % "27.0-jre" % Test,
       "org.codehaus.plexus" % "plexus-utils" % "3.1.0" % Test,
@@ -64,16 +72,6 @@ lazy val root = (project in file("."))
     skip in publish := true
   )
   .aggregate(`directory-watcher`, `directory-watcher-better-files`)
-
-scalafmtOnCompile in ThisBuild := true
-
-publishMavenStyle in ThisBuild := true
-publishTo in ThisBuild := Some(
-  if (isSnapshot.value)
-    Opts.resolver.sonatypeSnapshots
-  else
-    Opts.resolver.sonatypeStaging
-)
 
 import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
 

@@ -73,7 +73,7 @@ public class DirectoryWatcherOnDiskTest {
 
   private void copySubDirectoryFromOutside()
       throws IOException, InterruptedException, ExecutionException {
-    final CompletableFuture future = this.watcher.watchAsync();
+    final CompletableFuture<Void> future = this.watcher.watchAsync();
     final Path parent = Files.createTempDirectory("parent-");
     final Path child = Files.createTempFile(parent, "child-", ".dat");
     try {
@@ -133,7 +133,7 @@ public class DirectoryWatcherOnDiskTest {
   }
 
   private void moveSubDirectory() throws IOException, InterruptedException, ExecutionException {
-    final CompletableFuture future = this.watcher.watchAsync();
+    final CompletableFuture<Void> future = this.watcher.watchAsync();
     final Path parent = Files.createTempDirectory(this.tmpDir, "parent-");
     final Path child = Files.createTempFile(parent, "child-", ".dat");
     final Path newParent = Files.createTempDirectory(this.tmpDir, "new-");
@@ -185,7 +185,7 @@ public class DirectoryWatcherOnDiskTest {
             .listener(this.recorder)
             .fileHashing(false)
             .build();
-    final CompletableFuture future = this.watcher.watchAsync();
+    final CompletableFuture<Void> future = this.watcher.watchAsync();
     Random random = new Random();
     int i = random.nextInt(100_000);
     final Path child = tmpDir.resolve("child-" + i + ".dat");
@@ -235,7 +235,7 @@ public class DirectoryWatcherOnDiskTest {
             .listener(this.recorder)
             .fileHashing(true)
             .build();
-    final CompletableFuture future = this.watcher.watchAsync();
+    final CompletableFuture<Void> future = this.watcher.watchAsync();
     Random random = new Random();
     int i = random.nextInt(100_000);
     final Path child = tmpDir.resolve("child-" + i + ".dat");
