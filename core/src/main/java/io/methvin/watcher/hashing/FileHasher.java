@@ -16,8 +16,10 @@ package io.methvin.watcher.hashing;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 
 /**
  * A function to convert a Path to a hash code used to check if the file content is changed. This is
@@ -30,6 +32,7 @@ import java.nio.file.Path;
  */
 @FunctionalInterface
 public interface FileHasher {
+  /** The default file hasher instance, which uses Murmur3. */
   FileHasher DEFAULT_FILE_HASHER =
       path -> {
         Murmur3F murmur = new Murmur3F();
@@ -40,6 +43,21 @@ public interface FileHasher {
           }
         }
         return HashCode.fromBytes(murmur.getValueBytesBigEndian());
+      };
+
+  /**
+   * A file hasher that returns the last modified time provided by the OS.
+   *
+   * <p>This only works reliably on certain file systems and JDKs that support at least
+   * millisecond-level precision.
+   */
+  FileHasher LAST_MODIFIED_TIME =
+      path -> {
+        Instant modifyTime = Files.getLastModifiedTime(path).toInstant();
+        ByteBuffer buffer = ByteBuffer.allocate(2 * Long.BYTES);
+        buffer.putLong(modifyTime.getEpochSecond());
+        buffer.putLong(modifyTime.getNano());
+        return new HashCode(buffer.array());
       };
 
   HashCode hash(Path path) throws IOException;

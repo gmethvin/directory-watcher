@@ -35,7 +35,7 @@ public class HashCode {
     return new HashCode(new byte[0]);
   }
 
-  private HashCode(byte[] value) {
+  HashCode(byte[] value) {
     this.value = value;
   }
 

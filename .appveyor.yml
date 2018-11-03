@@ -1,5 +1,5 @@
 version: '{build}'
-os: Windows Server 2012
+os: Visual Studio 2017
 environment:
   JAVA_OPTS: -Dfile.encoding=UTF8
   SBT_OPTS: -Dfile.encoding=UTF8

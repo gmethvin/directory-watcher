@@ -98,11 +98,11 @@ DirectoryWatcher watcher = DirectoryWatcher.builder()
     .path(path)
     .listener(listener)
     // use the last modified time as a "hash" to determine if the file has changed
-    .fileHasher(path -> HashCode.fromLong(Files.getLastModifiedTime(path).toMillis()))
+    .fileHasher(FileHasher.LAST_MODIFIED_TIME)
     .build();
 ```
 
-(Note that simply using the last modified time may not be precise enough for all situations, so could result in missed modify events, but will usually be faster than hashing actual file contents.)
+In the above example we use the last modified time hasher. This hasher is only suitable for platforms that have at least millisecond precision in last modified times from Java. It's known to work with JDK 10+ on Macs with APFS.
 
 ## better-files integration (Scala)
 
