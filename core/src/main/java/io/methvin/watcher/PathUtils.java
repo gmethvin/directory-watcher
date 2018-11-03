@@ -66,7 +66,10 @@ public class PathUtils {
   }
 
   public static Set<Path> recursiveListFiles(Path file) {
-    Set<Path> files = new HashSet<Path>();
+    if (!Files.exists(file)) {
+      return Collections.emptySet();
+    }
+    Set<Path> files = new HashSet<>();
     files.add(file);
     if (file.toFile().isDirectory()) {
       File[] filesInDirectory = file.toFile().listFiles();

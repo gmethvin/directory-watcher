@@ -226,8 +226,7 @@ public class DirectoryWatcherOnDiskTest {
   @Test
   public void doNotEmitCreateEventWhenFileLockedWithHashing()
       throws IOException, ExecutionException, InterruptedException {
-    // This test confirms our assumption that on Windows we lose the event when the hashed file is
-    // locked.
+    // This test confirms that on Windows we lose the event when the hashed file is locked.
     Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("win"));
     this.watcher =
         DirectoryWatcher.builder()
