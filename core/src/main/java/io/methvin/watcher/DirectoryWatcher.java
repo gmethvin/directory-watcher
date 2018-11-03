@@ -120,8 +120,18 @@ public class DirectoryWatcher {
 
     private Builder osDefaultWatchService() throws IOException {
       boolean isMac = System.getProperty("os.name").toLowerCase().contains("mac");
-      return watchService(
-          isMac ? new MacOSXListeningWatchService() : FileSystems.getDefault().newWatchService());
+      if (isMac) {
+        return watchService(
+            new MacOSXListeningWatchService(
+                new MacOSXListeningWatchService.Config() {
+                  @Override
+                  public FileHasher fileHasher() {
+                    return fileHasher;
+                  }
+                }));
+      } else {
+        return watchService(FileSystems.getDefault().newWatchService());
+      }
     }
 
     private Builder staticLogger() {

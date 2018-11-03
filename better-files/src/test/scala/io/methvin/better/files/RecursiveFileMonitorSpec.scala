@@ -1,6 +1,7 @@
 package io.methvin.better.files
 
 import better.files._
+import io.methvin.watcher.hashing.FileHasher
 import org.scalatest._
 
 import scala.concurrent.ExecutionContext.Implicits.global
