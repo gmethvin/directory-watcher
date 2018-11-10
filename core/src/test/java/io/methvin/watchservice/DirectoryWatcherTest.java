@@ -6,6 +6,7 @@ import com.google.common.collect.ListMultimap;
 import io.methvin.watcher.DirectoryChangeEvent;
 import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
+import io.methvin.watcher.hashing.FileHasher;
 import io.methvin.watchservice.FileSystem.FileSystemAction;
 import org.codehaus.plexus.util.FileUtils;
 import org.junit.Assume;
@@ -16,6 +17,7 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import static java.nio.file.StandardWatchEventKinds.*;
@@ -66,6 +68,25 @@ public class DirectoryWatcherTest {
   }
 
   @Test
+  public void validateOsxDirectoryWatcherNoHashing() throws Exception {
+    Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
+
+    File directory = new File(new File("").getAbsolutePath(), "target/directory");
+    FileUtils.deleteDirectory(directory);
+    directory.mkdirs();
+    runWatcher(
+        directory.toPath(),
+        new MacOSXListeningWatchService(
+            new MacOSXListeningWatchService.Config() {
+              @Override
+              public FileHasher fileHasher() {
+                return null;
+              }
+            }),
+        false);
+  }
+
+  @Test
   public void validateOsxDirectoryWatcherPreExistingSubdir() throws Exception {
     Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
 
@@ -102,18 +123,24 @@ public class DirectoryWatcherTest {
     runWatcher(directory.toPath(), FileSystems.getDefault().newWatchService());
   }
 
-  protected void runWatcher(Path directory, WatchService watchService) throws Exception {
+  private void runWatcher(Path directory, WatchService watchService) throws Exception {
+    runWatcher(directory, watchService, true);
+  }
+
+  private void runWatcher(Path directory, WatchService watchService, boolean fileHashing)
+      throws Exception {
     //
     // start our service
     // play our events
     // stop when all our events have been drained and processed
     //
-    // We wait 100ms before deletes are executed because any faster and the MacOS implementation
+    // We wait 500ms before deletes are executed because any faster and the MacOS implementation
     // appears to not see them because the create/delete pair happen so fast it's like the file
     // is never there at all.
     int waitInMs = 500;
     FileSystem fileSystem =
         new FileSystem(directory)
+            .wait(waitInMs)
             .create("one.txt")
             .wait(waitInMs)
             .create("two.txt")
@@ -137,13 +164,14 @@ public class DirectoryWatcherTest {
     // Collect our filesystem actions
     List<FileSystemAction> actions = fileSystem.actions();
 
-    TestDirectoryChangeListener listener = new TestDirectoryChangeListener(directory, actions);
+    TestDirectoryChangeListener listener =
+        new TestDirectoryChangeListener(directory, actions, fileHashing);
     DirectoryWatcher watcher =
         DirectoryWatcher.builder()
             .path(directory)
             .listener(listener)
             .watchService(watchService)
-            .fileHashing(true)
+            .fileHashing(fileHashing)
             .build();
     // Fire up the filesystem watcher
     CompletableFuture<Void> future = watcher.watchAsync();
@@ -199,16 +227,31 @@ public class DirectoryWatcherTest {
     final List<FileSystemAction> actions;
     final ListMultimap<String, WatchEvent.Kind<?>> events = ArrayListMultimap.create();
     final int totalActions;
+    final boolean fileHashing;
     int actionsProcessed = 0;
 
-    public TestDirectoryChangeListener(Path directory, List<FileSystemAction> actions) {
+    // keep track of recent creates so we can ignore create/modify pairs
+    final ConcurrentHashMap<Path, Long> createTimes = new ConcurrentHashMap<>();
+
+    public TestDirectoryChangeListener(
+        Path directory, List<FileSystemAction> actions, boolean fileHashing) {
       this.directory = directory;
       this.actions = actions;
+      this.fileHashing = fileHashing;
       this.totalActions = actions.size();
     }
 
     @Override
     public void onEvent(DirectoryChangeEvent event) throws IOException {
+      if (event.eventType() == DirectoryChangeEvent.EventType.CREATE) {
+        createTimes.putIfAbsent(event.path(), System.currentTimeMillis());
+      }
+      if (!fileHashing
+          && event.eventType() == DirectoryChangeEvent.EventType.MODIFY
+          && System.currentTimeMillis() - createTimes.getOrDefault(event.path(), 0L) < 10) {
+        /* ignore this event since it's a create paired with a modify, which we allow when file hashing is disabled */
+        return;
+      }
       updateActions(event.path(), event.eventType().getWatchEventKind());
     }
 

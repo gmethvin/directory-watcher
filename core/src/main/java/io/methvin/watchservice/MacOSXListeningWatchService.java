@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.WatchEvent;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static java.nio.file.StandardWatchEventKinds.*;
 
@@ -54,13 +55,35 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     }
 
     /**
-     * The file hasher to use to verify files. If null, this will use the default directory-watcher
-     * hasher.
+     * Request file-level notifications from the watcher. This can be expensive so use with care.
+     *
+     * <p>NOTE: this feature will automatically be enabled when the file hasher is null, since the
+     * hasher is needed to determine which files in a directory were actually created or modified.
+     */
+    default boolean fileLevelEvents() {
+      return false;
+    }
+
+    /**
+     * The file hasher to use to check whether files have changed. If null, this will disable file
+     * hashing and automatically turn on file-level events. See `fileLevelEvents` config for more
+     * information.
      */
     default FileHasher fileHasher() {
-      return null;
+      return FileHasher.DEFAULT_FILE_HASHER;
     }
   }
+
+  /** A file hasher that always increments its value. Used if we want to "turn off" hashing. */
+  private FileHasher INCREMENTING_FILE_HASHER =
+      new FileHasher() {
+        private final AtomicLong value = new AtomicLong();
+
+        @Override
+        public HashCode hash(Path path) throws IOException {
+          return HashCode.fromLong(value.incrementAndGet());
+        }
+      };
 
   // need to keep reference to callbacks to prevent garbage collection
   @SuppressWarnings({"MismatchedQueryAndUpdateOfCollection"})
@@ -72,19 +95,23 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
   private final double latency;
   private final int queueSize;
   private final FileHasher fileHasher;
+  private final boolean fileLevelEvents;
 
   public MacOSXListeningWatchService(Config config) {
     this.latency = config.latency();
     this.queueSize = config.queueSize();
-
-    // File hasher cannot be null, because this watch service depends on hashes to work properly.
-    FileHasher fileHasher = config.fileHasher();
-    this.fileHasher = fileHasher == null ? FileHasher.DEFAULT_FILE_HASHER : fileHasher;
+    FileHasher hasher = config.fileHasher();
+    this.fileLevelEvents = hasher == null || config.fileLevelEvents();
+    this.fileHasher = hasher == null ? INCREMENTING_FILE_HASHER : hasher;
   }
 
   public MacOSXListeningWatchService() {
     this(new Config() {});
   }
+
+  private final long kFSEventStreamEventIdSinceNow = -1; //  this is 0xFFFFFFFFFFFFFFFF
+  private final int kFSEventStreamCreateFlagNoDefer = 0x00000002;
+  private final int kFSEventStreamCreateFlagFileEvents = 0x00000010;
 
   @Override
   public AbstractWatchKey register(
@@ -101,11 +128,13 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     final Pointer[] values = {CFStringRef.toCFString(s).getPointer()};
     final CFArrayRef pathsToWatch =
         CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);
-    final long kFSEventStreamEventIdSinceNow = -1; //  this is 0xFFFFFFFFFFFFFFFF
-    final int kFSEventStreamCreateFlagNoDefer = 0x00000002;
     final CarbonAPI.FSEventStreamCallback callback =
         new MacOSXListeningCallback(watchKey, fileHasher, hashCodeMap);
     callbackList.add(callback);
+    int flags = kFSEventStreamCreateFlagNoDefer;
+    if (fileLevelEvents) {
+      flags = flags | kFSEventStreamCreateFlagFileEvents;
+    }
     final FSEventStreamRef stream =
         CarbonAPI.INSTANCE.FSEventStreamCreate(
             Pointer.NULL,
@@ -114,7 +143,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
             pathsToWatch,
             kFSEventStreamEventIdSinceNow,
             latency,
-            kFSEventStreamCreateFlagNoDefer);
+            flags);
 
     final CFRunLoopThread thread = new CFRunLoopThread(stream, file.toFile());
     thread.setDaemon(true);
@@ -185,8 +214,11 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
         /* array of unsigned long */ Pointer eventIds) {
       final int length = numEvents.intValue();
 
-      for (String folderName : eventPaths.getStringArray(0, length)) {
-        final Set<Path> filesOnDisk = PathUtils.recursiveListFiles(new File(folderName).toPath());
+      for (String fileName : eventPaths.getStringArray(0, length)) {
+        /*
+         * Note: If file-level events are enabled, fileName will be an individual file so we usually won't recurse.
+         */
+        final Set<Path> filesOnDisk = PathUtils.recursiveListFiles(new File(fileName).toPath());
         /*
          * We collect and process all actions for each category of created, modified and deleted as it appears a first thread
          * can start while a second thread can get through faster. If we do the collection for each category in a second
@@ -211,7 +243,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
           }
         }
 
-        for (Path file : findDeletedFiles(folderName, filesOnDisk)) {
+        for (Path file : findDeletedFiles(fileName, filesOnDisk)) {
           if (watchKey.isReportDeleteEvents()) {
             watchKey.signalEvent(ENTRY_DELETE, file);
           }
@@ -246,10 +278,10 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       return createdFileList;
     }
 
-    private List<Path> findDeletedFiles(String folderName, Set<Path> filesOnDisk) {
+    private List<Path> findDeletedFiles(String name, Set<Path> filesOnDisk) {
       List<Path> deletedFileList = new ArrayList<Path>();
       for (Path file : hashCodeMap.keySet()) {
-        if (file.toFile().getAbsolutePath().startsWith(folderName) && !filesOnDisk.contains(file)) {
+        if (file.toFile().getAbsolutePath().startsWith(name) && !filesOnDisk.contains(file)) {
           deletedFileList.add(file);
           hashCodeMap.remove(file);
         }
