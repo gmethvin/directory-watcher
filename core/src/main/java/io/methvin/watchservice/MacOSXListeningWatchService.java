@@ -218,7 +218,13 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
         /*
          * Note: If file-level events are enabled, fileName will be an individual file so we usually won't recurse.
          */
-        final Set<Path> filesOnDisk = PathUtils.recursiveListFiles(new File(fileName).toPath());
+        Path path = new File(fileName).toPath();
+        final Set<Path> filesOnDisk;
+        try {
+          filesOnDisk = PathUtils.recursiveListFiles(path);
+        } catch (IOException e) {
+          throw new IllegalStateException("Could not recursively list files for " + fileName, e);
+        }
         /*
          * We collect and process all actions for each category of created, modified and deleted as it appears a first thread
          * can start while a second thread can get through faster. If we do the collection for each category in a second

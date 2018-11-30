@@ -16,12 +16,9 @@ package io.methvin.watcher;
 import io.methvin.watcher.hashing.FileHasher;
 import io.methvin.watcher.hashing.HashCode;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.WatchEvent;
-import java.nio.file.WatchKey;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -46,11 +43,13 @@ public class PathUtils {
     return new ConcurrentHashMap<>();
   }
 
-  public static Map<Path, HashCode> createHashCodeMap(Path file, FileHasher fileHasher) {
+  public static Map<Path, HashCode> createHashCodeMap(Path file, FileHasher fileHasher)
+      throws IOException {
     return createHashCodeMap(Collections.singletonList(file), fileHasher);
   }
 
-  public static Map<Path, HashCode> createHashCodeMap(List<Path> files, FileHasher fileHasher) {
+  public static Map<Path, HashCode> createHashCodeMap(List<Path> files, FileHasher fileHasher)
+      throws IOException {
     Map<Path, HashCode> lastModifiedMap = new ConcurrentHashMap<>();
     if (fileHasher != null) {
       for (Path file : files) {
@@ -65,21 +64,42 @@ public class PathUtils {
     return lastModifiedMap;
   }
 
-  public static Set<Path> recursiveListFiles(Path file) {
+  public static Set<Path> recursiveListFiles(Path file) throws IOException {
     if (!Files.exists(file)) {
       return Collections.emptySet();
     }
-    Set<Path> files = new HashSet<>();
+
+    final Set<Path> files = new HashSet<>();
     files.add(file);
-    if (file.toFile().isDirectory()) {
-      File[] filesInDirectory = file.toFile().listFiles();
-      if (filesInDirectory != null) {
-        for (File child : filesInDirectory) {
-          files.addAll(recursiveListFiles(child.toPath()));
-        }
-      }
-    }
+
+    recursiveVisitFiles(file, files::add, files::add);
+
     return files;
+  }
+
+  interface PathCallback {
+    void call(Path p) throws IOException;
+  }
+
+  public static void recursiveVisitFiles(Path file, PathCallback onDirectory, PathCallback onFile)
+      throws IOException {
+    Files.walkFileTree(
+        file,
+        new SimpleFileVisitor<Path>() {
+          @Override
+          public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+              throws IOException {
+            onDirectory.call(dir);
+            return FileVisitResult.CONTINUE;
+          }
+
+          @Override
+          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+              throws IOException {
+            onFile.call(file);
+            return FileVisitResult.CONTINUE;
+          }
+        });
   }
 
   @SuppressWarnings("unchecked")

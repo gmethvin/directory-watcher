@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -245,23 +244,10 @@ public class DirectoryWatcher {
                * Walk the file tree to make sure we send create events for any files that were created.
                */
               if (!isMac) {
-                Files.walkFileTree(
+                PathUtils.recursiveVisitFiles(
                     childPath,
-                    new SimpleFileVisitor<Path>() {
-                      @Override
-                      public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-                          throws IOException {
-                        notifyCreateEvent(dir, count);
-                        return FileVisitResult.CONTINUE;
-                      }
-
-                      @Override
-                      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-                          throws IOException {
-                        notifyCreateEvent(file, count);
-                        return FileVisitResult.CONTINUE;
-                      }
-                    });
+                    dir -> notifyCreateEvent(dir, count),
+                    file -> notifyCreateEvent(file, count));
               }
             }
             notifyCreateEvent(childPath, count);
@@ -336,16 +322,7 @@ public class DirectoryWatcher {
       }
     } else {
       // Since FILE_TREE is unsupported, register root directory and sub-directories
-      Files.walkFileTree(
-          start,
-          new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-                throws IOException {
-              register(dir, false);
-              return FileVisitResult.CONTINUE;
-            }
-          });
+      PathUtils.recursiveVisitFiles(start, dir -> register(dir, false), file -> {});
     }
   }
 
