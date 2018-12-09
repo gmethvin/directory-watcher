@@ -9,7 +9,7 @@ before_install:
       brew install sbt;
     fi
 script:
-  - sbt compile test publishLocal
+  - sbt +compile +test +publishLocal
 
 # Note: OSX has issues with oraclejdk8
 # see https://github.com/travis-ci/travis-ci/issues/2316

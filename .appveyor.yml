@@ -8,6 +8,6 @@ install:
   - cmd: SET PATH=C:\sbt\bin;%JAVA_HOME%\bin;%PATH%
   - cmd: SET SBT_OPTS=-Xmx4G -XX:MaxPermSize=1G
 build_script:
-  - sbt compile
+  - sbt +compile
 test_script:
-  - sbt test
+  - sbt +test
