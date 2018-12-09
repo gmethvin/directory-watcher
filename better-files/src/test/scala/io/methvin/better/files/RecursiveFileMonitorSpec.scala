@@ -39,7 +39,7 @@ class RecursiveFileMonitorSpec extends WordSpec with Matchers {
       file.clear(); sleep()
       file.writeText("howdy"); sleep()
       file.delete(); sleep()
-      sleep(1.second)
+      sleep()
       val sibling = (file.parent / "t1.txt").createIfNotExists(); sleep()
       sibling.writeText("hello world"); sleep()
       sleep()
@@ -72,13 +72,12 @@ class RecursiveFileMonitorSpec extends WordSpec with Matchers {
       watcher.start()
 
       /***************************************************************************/
-      sleep(1.second)
+      sleep()
       val f1 = (directory / "f1.txt").createIfNotExists()
       f1.writeText("hello world"); sleep()
       f1.clear(); sleep()
       f1.writeText("howdy"); sleep()
       f1.delete(); sleep()
-      sleep(1.second)
       val f2 = (directory / "f2.txt").createIfNotExists(); sleep()
       f2.writeText("hello world"); sleep()
       val f3 = (directory / "f3.txt").createIfNotExists(); sleep()
@@ -89,7 +88,7 @@ class RecursiveFileMonitorSpec extends WordSpec with Matchers {
       d1.delete()
       sleep(5.seconds)
 
-      log.size should be >= 13
+      log.size should be >= 12
       log.exists(_ contains f1.name) shouldBe true
       log.exists(_ contains f2.name) shouldBe true
       log.exists(_ contains f3.name) shouldBe true
@@ -98,5 +97,5 @@ class RecursiveFileMonitorSpec extends WordSpec with Matchers {
     }
   }
 
-  def sleep(t: FiniteDuration = 500.millis): Unit = Thread.sleep(t.toMillis)
+  def sleep(t: FiniteDuration = 1.second): Unit = Thread.sleep(t.toMillis)
 }
