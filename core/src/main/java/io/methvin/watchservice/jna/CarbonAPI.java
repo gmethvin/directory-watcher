@@ -47,11 +47,18 @@ public interface CarbonAPI extends Library {
   void FSEventStreamScheduleWithRunLoop(
       FSEventStreamRef streamRef, CFRunLoopRef runLoop, CFStringRef runLoopMode);
 
+  void FSEventStreamUnscheduleFromRunLoop(
+      FSEventStreamRef streamRef, CFRunLoopRef runLoop, CFStringRef runLoopMode);
+
+  void FSEventStreamInvalidate(FSEventStreamRef streamRef);
+
+  void FSEventStreamRelease(FSEventStreamRef streamRef);
+
   CFRunLoopRef CFRunLoopGetCurrent();
 
   void CFRunLoopRun();
 
-  void CFRunLoopStop(CFRunLoopRef rl);
+  void CFRunLoopStop(CFRunLoopRef runLoopRef);
 
   public interface FSEventStreamCallback extends Callback {
     @SuppressWarnings({"UnusedDeclaration"})

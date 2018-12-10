@@ -184,8 +184,12 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
   public void close() {
     super.close();
     for (CFRunLoopThread thread : threadList) {
-      CarbonAPI.INSTANCE.CFRunLoopStop(thread.getRunLoop());
-      CarbonAPI.INSTANCE.FSEventStreamStop(thread.getStreamRef());
+      CFRunLoopRef runLoopRef = thread.getRunLoop();
+      FSEventStreamRef streamRef = thread.getStreamRef();
+      CarbonAPI.INSTANCE.CFRunLoopStop(runLoopRef);
+      CarbonAPI.INSTANCE.FSEventStreamStop(streamRef);
+      CarbonAPI.INSTANCE.FSEventStreamInvalidate(streamRef);
+      CarbonAPI.INSTANCE.FSEventStreamRelease(streamRef);
     }
     threadList.clear();
     callbackList.clear();
