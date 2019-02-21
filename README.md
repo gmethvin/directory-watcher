@@ -37,44 +37,42 @@ Use `DirectoryWatcher.builder()` to build a new watcher, then use either `watch(
 ```java
 package com.example;
 
-import java.io.IOException;
-import java.nio.file.Path;
-
-import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
 
-import static io.methvin.watcher.DirectoryChangeEvent.EventType.*;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 
 public class DirectoryWatchingUtility {
 
-  private final Path pathToWatch;
-  private final DirectoryWatcher watcher;
+    private final Path directoryToWatch;
+    private final DirectoryWatcher watcher;
 
-  public DirectoryWatchingUtility(Path directoryToWatch) {
-    this.directoryToWatch = directoryToWatch;
-    this.watcher = DirectoryWatcher.builder()
-        .path(directoryToWatch) // or use paths(directoriesToWatch)
-        .listener(event -> {
-          switch (event.eventType()) {
-            case CREATE: /* file created */; break;
-            case MODIFY: /* file modified */; break;
-            case DELETE: /* file deleted */; break;
-          }
-        })
-        // .fileHashing(false) // defaults to true
-        // .logger(logger) // defaults to LoggerFactory.getLogger(DirectoryWatcher.class)
-        // .watchService(watchService) // defaults based on OS to either JVM WatchService or the JNA macOS WatchService
-        .build();
-  }
+    public DirectoryWatchingUtility(Path directoryToWatch) throws IOException {
+        this.directoryToWatch = directoryToWatch;
+        this.watcher = DirectoryWatcher.builder()
+                .path(directoryToWatch) // or use paths(directoriesToWatch)
+                .listener(event -> {
+                    switch (event.eventType()) {
+                        case CREATE: /* file created */; break;
+                        case MODIFY: /* file modified */; break;
+                        case DELETE: /* file deleted */; break;
+                    }
+                })
+                // .fileHashing(false) // defaults to true
+                // .logger(logger) // defaults to LoggerFactory.getLogger(DirectoryWatcher.class)
+                // .watchService(watchService) // defaults based on OS to either JVM WatchService or the JNA macOS WatchService
+                .build();
+    }
 
-  public void stopWatching() {
-    watcher.close();
-  }
+    public void stopWatching() throws IOException {
+        watcher.close();
+    }
 
-  public CompletableFuture<Void> watch() {
-    // you can also use watcher.watch() to block the current thread
-    return watcher.watchAsync();
-  }
+    public CompletableFuture<Void> watch() {
+        // you can also use watcher.watch() to block the current thread
+        return watcher.watchAsync();
+    }
 }
 ```
 
