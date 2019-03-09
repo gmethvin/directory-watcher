@@ -341,7 +341,7 @@ public class DirectoryWatcher {
   }
 
   private void notifyCreateEvent(Path path, int count) throws IOException {
-    if (fileHasher != null || Files.isDirectory(path)) {
+    if (fileHasher != null && !Files.isDirectory(path)) {
       HashCode newHash = PathUtils.hash(fileHasher, path);
       if (newHash == null) {
         logger.debug("Failed to hash created file [{}]. It may have been deleted.", path);
