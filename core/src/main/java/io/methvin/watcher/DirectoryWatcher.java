@@ -121,13 +121,13 @@ public class DirectoryWatcher {
       boolean isMac = System.getProperty("os.name").toLowerCase().contains("mac");
       if (isMac) {
         return watchService(
-            new MacOSXListeningWatchService(
-                new MacOSXListeningWatchService.Config() {
-                  @Override
-                  public FileHasher fileHasher() {
-                    return fileHasher;
-                  }
-                }));
+                new MacOSXListeningWatchService(
+                        new MacOSXListeningWatchService.Config() {
+                          @Override
+                          public FileHasher fileHasher() {
+                            return fileHasher;
+                          }
+                        }));
       } else {
         return watchService(FileSystems.getDefault().newWatchService());
       }
@@ -157,12 +157,12 @@ public class DirectoryWatcher {
   private FileHasher fileHasher;
 
   public DirectoryWatcher(
-      List<Path> paths,
-      DirectoryChangeListener listener,
-      WatchService watchService,
-      FileHasher fileHasher,
-      Logger logger)
-      throws IOException {
+          List<Path> paths,
+          DirectoryChangeListener listener,
+          WatchService watchService,
+          FileHasher fileHasher,
+          Logger logger)
+          throws IOException {
     this.paths = paths;
     this.listener = listener;
     this.watchService = watchService;
@@ -191,11 +191,11 @@ public class DirectoryWatcher {
    */
   public CompletableFuture<Void> watchAsync(Executor executor) {
     return CompletableFuture.supplyAsync(
-        () -> {
-          watch();
-          return null;
-        },
-        executor);
+            () -> {
+              watch();
+              return null;
+            },
+            executor);
   }
 
   /**
@@ -223,7 +223,7 @@ public class DirectoryWatcher {
           Path eventPath = ev.context();
           if (!keyRoots.containsKey(key)) {
             throw new IllegalStateException(
-                "WatchService returned key [" + key + "] but it was not found in keyRoots!");
+                    "WatchService returned key [" + key + "] but it was not found in keyRoots!");
           }
           Path childPath = eventPath == null ? null : keyRoots.get(key).resolve(eventPath);
           logger.debug("{} [{}]", kind, childPath);
@@ -245,9 +245,9 @@ public class DirectoryWatcher {
                */
               if (!isMac) {
                 PathUtils.recursiveVisitFiles(
-                    childPath,
-                    dir -> notifyCreateEvent(dir, count),
-                    file -> notifyCreateEvent(file, count));
+                        childPath,
+                        dir -> notifyCreateEvent(dir, count),
+                        file -> notifyCreateEvent(file, count));
               }
             }
             notifyCreateEvent(childPath, count);
@@ -270,13 +270,13 @@ public class DirectoryWatcher {
                 listener.onEvent(new DirectoryChangeEvent(EventType.MODIFY, childPath, count));
               } else if (newHash == null) {
                 logger.debug(
-                    "Failed to hash modified file [{}]. It may have been deleted.", childPath);
+                        "Failed to hash modified file [{}]. It may have been deleted.", childPath);
               }
             } else {
               listener.onEvent(new DirectoryChangeEvent(EventType.MODIFY, childPath, count));
             }
           } else if (kind == ENTRY_DELETE) {
-            pathHashes.remove(childPath);
+            removeFromPathHash(childPath);
             listener.onEvent(new DirectoryChangeEvent(EventType.DELETE, childPath, count));
           }
         } catch (Exception e) {
@@ -296,6 +296,16 @@ public class DirectoryWatcher {
         }
       }
     }
+  }
+
+  private void removeFromPathHash(Path childPath) {
+    // if directory then remove also sub-files/folders
+    if (Files.isDirectory(childPath)) {
+      pathHashes.entrySet().removeIf(e -> e.getKey().startsWith(childPath));
+      return;
+    }
+    // if file then just remove from pathHashes
+    pathHashes.remove(childPath);
   }
 
   public DirectoryChangeListener getListener() {
@@ -331,17 +341,17 @@ public class DirectoryWatcher {
     logger.debug("Registering [{}].", directory);
     Watchable watchable = isMac ? new WatchablePath(directory) : directory;
     WatchEvent.Modifier[] modifiers =
-        useFileTreeModifier
-            ? new WatchEvent.Modifier[] {ExtendedWatchEventModifier.FILE_TREE}
-            : new WatchEvent.Modifier[] {};
+            useFileTreeModifier
+                    ? new WatchEvent.Modifier[] {ExtendedWatchEventModifier.FILE_TREE}
+                    : new WatchEvent.Modifier[] {};
     WatchEvent.Kind<?>[] kinds =
-        new WatchEvent.Kind<?>[] {ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY};
+            new WatchEvent.Kind<?>[] {ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY};
     WatchKey watchKey = watchable.register(watchService, kinds, modifiers);
     keyRoots.put(watchKey, directory);
   }
 
   private void notifyCreateEvent(Path path, int count) throws IOException {
-    if (fileHasher != null && !Files.isDirectory(path)) {
+    if (fileHasher != null || Files.isDirectory(path)) {
       HashCode newHash = PathUtils.hash(fileHasher, path);
       if (newHash == null) {
         logger.debug("Failed to hash created file [{}]. It may have been deleted.", path);
