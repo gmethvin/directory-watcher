@@ -46,7 +46,8 @@ lazy val `directory-watcher` = (project in file("core"))
       "io.airlift" % "command" % "0.3" % Test,
       "com.google.guava" % "guava" % "27.0-jre" % Test,
       "org.codehaus.plexus" % "plexus-utils" % "3.1.0" % Test,
-      "commons-io" % "commons-io" % "2.6" % Test
+      "commons-io" % "commons-io" % "2.6" % Test,
+      "org.awaitility" % "awaitility" % "3.1.6" % Test
     )
   )
 

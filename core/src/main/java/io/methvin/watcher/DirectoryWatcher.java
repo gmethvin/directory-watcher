@@ -276,7 +276,9 @@ public class DirectoryWatcher {
               listener.onEvent(new DirectoryChangeEvent(EventType.MODIFY, childPath, count));
             }
           } else if (kind == ENTRY_DELETE) {
-            pathHashes.remove(childPath);
+            // we cannot tell if the deletion was on file or folder because path points nowhere
+            // (file/folder was deleted)
+            pathHashes.entrySet().removeIf(e -> e.getKey().startsWith(childPath));
             listener.onEvent(new DirectoryChangeEvent(EventType.DELETE, childPath, count));
           }
         } catch (Exception e) {
@@ -341,7 +343,7 @@ public class DirectoryWatcher {
   }
 
   private void notifyCreateEvent(Path path, int count) throws IOException {
-    if (fileHasher != null && !Files.isDirectory(path)) {
+    if (fileHasher != null || Files.isDirectory(path)) {
       HashCode newHash = PathUtils.hash(fileHasher, path);
       if (newHash == null) {
         logger.debug("Failed to hash created file [{}]. It may have been deleted.", path);
