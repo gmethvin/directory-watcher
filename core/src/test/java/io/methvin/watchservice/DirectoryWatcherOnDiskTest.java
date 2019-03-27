@@ -17,6 +17,7 @@ import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -27,6 +28,7 @@ import java.util.function.Predicate;
 
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertTrue;
+import static org.awaitility.Awaitility.await;
 
 public class DirectoryWatcherOnDiskTest {
 
@@ -69,6 +71,102 @@ public class DirectoryWatcherOnDiskTest {
             .build();
     copySubDirectoryFromOutside();
     this.watcher.close();
+  }
+
+  @Test
+  public void copySubDirectoryFromOutsideTwiceHashing() throws IOException {
+    this.watcher =
+        DirectoryWatcher.builder()
+            .path(this.tmpDir)
+            .listener(this.recorder)
+            .fileHashing(true)
+            .build();
+    this.watcher.watchAsync();
+    List<Path> structure = createFolderStructure();
+    copyAndVerifyEvents(structure);
+
+    await().atMost(5, TimeUnit.SECONDS).until(() -> tmpDir.toFile().listFiles().length == 0);
+    // reset recorder
+    this.recorder.events.clear();
+    copyAndVerifyEvents(structure);
+    this.watcher.close();
+  }
+
+  @Test
+  public void copySubDirectoryFromOutsideTwiceNoHashing() throws IOException {
+    this.watcher =
+        DirectoryWatcher.builder()
+            .path(this.tmpDir)
+            .listener(this.recorder)
+            .fileHashing(false)
+            .build();
+    this.watcher.watchAsync();
+    List<Path> structure = createFolderStructure();
+    copyAndVerifyEvents(structure);
+
+    await().atMost(5, TimeUnit.SECONDS).until(() -> tmpDir.toFile().listFiles().length == 0);
+    // reset recorder
+    this.recorder.events.clear();
+    copyAndVerifyEvents(structure);
+    this.watcher.close();
+  }
+
+  private void copyAndVerifyEvents(List<Path> structure) throws IOException {
+    try {
+      FileUtils.copyDirectoryToDirectory(structure.get(0).toFile(), tmpDir.toFile());
+      await()
+          .atMost(5, TimeUnit.SECONDS)
+          .untilAsserted(
+              () ->
+                  assertTrue(
+                      "Create event for the parent directory was notified",
+                      existsMatch(
+                          e ->
+                              e.eventType() == DirectoryChangeEvent.EventType.CREATE
+                                  && e.path()
+                                      .getFileName()
+                                      .equals(structure.get(0).getFileName()))));
+
+      await()
+          .atMost(5, TimeUnit.SECONDS)
+          .untilAsserted(
+              () ->
+                  assertTrue(
+                      "Create event for the child file was notified",
+                      existsMatch(
+                          e ->
+                              e.eventType() == DirectoryChangeEvent.EventType.CREATE
+                                  && e.path()
+                                      .getFileName()
+                                      .equals(structure.get(1).getFileName()))));
+
+      await()
+          .atMost(5, TimeUnit.SECONDS)
+          .untilAsserted(
+              () ->
+                  assertTrue(
+                      "Create event for the child file was notified",
+                      existsMatch(
+                          e ->
+                              e.eventType() == DirectoryChangeEvent.EventType.CREATE
+                                  && e.path()
+                                      .getFileName()
+                                      .equals(structure.get(2).getFileName()))));
+    } finally {
+      // unfortunately this deletion does not simulate 'real' deletion by user, as it delete all the
+      // files underneath
+      // you can stop the execution of the test here and delete the folder by hand and then continue
+      // with the test
+      FileUtils.deleteDirectory(tmpDir.toFile().listFiles()[0]);
+    }
+  }
+
+  private List<Path> createFolderStructure() throws IOException {
+    final Path parent = Files.createTempDirectory("parent-");
+    final Path child = Files.createTempFile(parent, "child-", ".dat");
+    final Path childFolder = Files.createTempDirectory(parent, "child-");
+
+    return Arrays.asList(parent, child, childFolder);
   }
 
   private void copySubDirectoryFromOutside()
