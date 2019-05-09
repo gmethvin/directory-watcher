@@ -11,3 +11,5 @@ src_managed/
 *.iml
 .idea
 .idea_modules
+.bloop
+.metals
