@@ -30,7 +30,7 @@ def commonSettings = Seq(
   javaOptions in Test ++= Seq("-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"),
   libraryDependencies ++= Seq(
     "com.novocode" % "junit-interface" % "0.11" % Test,
-    "org.slf4j" % "slf4j-simple" % "1.7.25" % Test
+    "org.slf4j" % "slf4j-simple" % "1.7.26" % Test
   )
 )
 
@@ -41,11 +41,11 @@ lazy val `directory-watcher` = (project in file("core"))
     autoScalaLibrary := false,
     crossPaths := false,
     libraryDependencies ++= Seq(
-      "net.java.dev.jna" % "jna" % "5.0.0",
-      "org.slf4j" % "slf4j-api" % "1.7.25",
+      "net.java.dev.jna" % "jna" % "5.3.1",
+      "org.slf4j" % "slf4j-api" % "1.7.26",
       "io.airlift" % "command" % "0.3" % Test,
       "com.google.guava" % "guava" % "27.0-jre" % Test,
-      "org.codehaus.plexus" % "plexus-utils" % "3.1.0" % Test,
+      "org.codehaus.plexus" % "plexus-utils" % "3.2.0" % Test,
       "commons-io" % "commons-io" % "2.6" % Test,
       "org.awaitility" % "awaitility" % "3.1.6" % Test
     )
@@ -55,12 +55,12 @@ lazy val `directory-watcher` = (project in file("core"))
 lazy val `directory-watcher-better-files` = (project in file("better-files"))
   .settings(commonSettings)
   .settings(
-    scalaVersion := "2.12.7",
-    crossScalaVersions := Seq(scalaVersion.value, "2.13.0-M5"),
+    scalaVersion := "2.12.8",
+    crossScalaVersions := Seq(scalaVersion.value, "2.13.0-RC1"),
     crossPaths := true,
     libraryDependencies ++= Seq(
-      "com.github.pathikrit" %% "better-files" % "3.7.0",
-      "org.scalatest" %% "scalatest" % "3.0.6-SNAP4" % Test
+      "com.github.pathikrit" %% "better-files" % "3.8.0",
+      "org.scalatest" %% "scalatest" % "3.0.8-RC2" % Test
     )
   )
   .dependsOn(`directory-watcher`)

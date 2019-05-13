@@ -153,10 +153,10 @@ public class DirectoryWatcherOnDiskTest {
                                       .getFileName()
                                       .equals(structure.get(2).getFileName()))));
     } finally {
-      // unfortunately this deletion does not simulate 'real' deletion by user, as it delete all the
-      // files underneath
-      // you can stop the execution of the test here and delete the folder by hand and then continue
-      // with the test
+      /* unfortunately this deletion does not simulate 'real' deletion by the user, as it
+       * deletes all the files underneath. You can stop the execution of the test here and
+       * delete the folder by hand and then continue with the test.
+       */
       FileUtils.deleteDirectory(tmpDir.toFile().listFiles()[0]);
     }
   }
