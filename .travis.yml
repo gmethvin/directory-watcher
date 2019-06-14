@@ -1,7 +1,4 @@
 sudo: false
-scala:
-  - 2.12.8
-  - 2.13.0
 os: linux
 
 before_install:
@@ -19,15 +16,23 @@ matrix:
   include:
     - jdk: oraclejdk8
       language: scala
+      scala: 2.12.8
+    - jdk: oraclejdk8
+      language: scala
+      scala: 2.13.0
     - jdk: oraclejdk11
       language: scala
+      scala: 2.13.0
     - os: osx
       osx_image: xcode9.3
       language: java
+      env:
+        - TRAVIS_SCALA_VERSION=2.13.0
     - os: osx
       osx_image: xcode10.1
       language: java
-
+      env:
+        - TRAVIS_SCALA_VERSION=2.13.0
 cache:
   directories:
     - "$HOME/.ivy2/cache"
