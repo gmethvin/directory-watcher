@@ -16,7 +16,7 @@ package io.methvin.watchservice.jna;
 import com.sun.jna.*;
 
 public interface CarbonAPI extends Library {
-  CarbonAPI INSTANCE = (CarbonAPI) Native.loadLibrary("Carbon", CarbonAPI.class);
+  CarbonAPI INSTANCE = Native.load("Carbon", CarbonAPI.class);
 
   CFArrayRef CFArrayCreate(
       CFAllocatorRef allocator, // always set to Pointer.NULL

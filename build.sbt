@@ -13,6 +13,7 @@ developers in ThisBuild := List(
   Developer("gmethvin", "Greg Methvin", "greg@methvin.net", new URL("https://github.com/gmethvin"))
 )
 
+scalaVersion in ThisBuild := "2.13.0"
 scalafmtOnCompile in ThisBuild := true
 
 publishMavenStyle in ThisBuild := true
@@ -30,7 +31,7 @@ def commonSettings = Seq(
   javaOptions in Test ++= Seq("-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"),
   libraryDependencies ++= Seq(
     "com.novocode" % "junit-interface" % "0.11" % Test,
-    "org.slf4j" % "slf4j-simple" % "1.7.26" % Test
+    "org.slf4j" % "slf4j-simple" % "1.7.29" % Test
   )
 )
 
@@ -41,13 +42,13 @@ lazy val `directory-watcher` = (project in file("core"))
     autoScalaLibrary := false,
     crossPaths := false,
     libraryDependencies ++= Seq(
-      "net.java.dev.jna" % "jna" % "5.3.1",
-      "org.slf4j" % "slf4j-api" % "1.7.26",
+      "net.java.dev.jna" % "jna" % "5.5.0",
+      "org.slf4j" % "slf4j-api" % "1.7.29",
       "io.airlift" % "command" % "0.3" % Test,
-      "com.google.guava" % "guava" % "27.0-jre" % Test,
-      "org.codehaus.plexus" % "plexus-utils" % "3.2.0" % Test,
+      "com.google.guava" % "guava" % "28.1-jre" % Test,
+      "org.codehaus.plexus" % "plexus-utils" % "3.3.0" % Test,
       "commons-io" % "commons-io" % "2.6" % Test,
-      "org.awaitility" % "awaitility" % "3.1.6" % Test
+      "org.awaitility" % "awaitility" % "4.0.1" % Test
     )
   )
 
@@ -55,8 +56,7 @@ lazy val `directory-watcher` = (project in file("core"))
 lazy val `directory-watcher-better-files` = (project in file("better-files"))
   .settings(commonSettings)
   .settings(
-    scalaVersion := "2.12.8",
-    crossScalaVersions := Seq(scalaVersion.value, "2.13.0"),
+    crossScalaVersions := Seq(scalaVersion.value, "2.12.10"),
     crossPaths := true,
     libraryDependencies ++= Seq(
       "com.github.pathikrit" %% "better-files" % "3.8.0",
