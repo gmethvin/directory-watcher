@@ -1,5 +1,5 @@
 version: '{build}'
-os: Visual Studio 2017
+image: Visual Studio 2017
 environment:
   JAVA_OPTS: -Dfile.encoding=UTF8
   SBT_OPTS: -Dfile.encoding=UTF8
@@ -11,3 +11,7 @@ build_script:
   - sbt +compile
 test_script:
   - sbt +test
+cache:
+  - '%USERPROFILE%\.ivy2\cache'
+  - '%USERPROFILE%\.jabba\jdk'
+  - '%USERPROFILE%\.sbt'
