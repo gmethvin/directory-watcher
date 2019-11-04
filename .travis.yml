@@ -11,14 +11,7 @@ env:
   - TRAVIS_JDK=8
   - TRAVIS_JDK=11
 
-before_install:
-  - curl -Ls https://git.io/jabba | bash && . ~/.jabba/jabba.sh
-  # osx on travis doesn't support sbt, so install it
-  - if [[ "$TRAVIS_OS_NAME" = "osx" ]]; then
-      brew update;
-      brew install sbt;
-    fi
-
+before_install: curl -Ls https://git.io/jabba | bash && . ~/.jabba/jabba.sh
 install: jabba install "adopt@~1.$TRAVIS_JDK.0-0" && jabba use "$_" && java -Xmx32m -version
 
 script:
