@@ -1,17 +1,33 @@
 ---
 version: '{build}'
 image: Visual Studio 2017
+
 environment:
   JAVA_OPTS: -Dfile.encoding=UTF8
   SBT_OPTS: -Dfile.encoding=UTF8
+  JABBA_HOME: '%USERPROFILE%\.jabba'
+  matrix:
+    - JDK: 8
+    - JDK: 11
+
 install:
+  # Install sbt
   - cmd: choco install sbt -ia "INSTALLDIR=""C:\sbt"""
   - cmd: SET PATH=C:\sbt\bin;%JAVA_HOME%\bin;%PATH%
   - cmd: SET SBT_OPTS=-Xmx4G -XX:MaxPermSize=1G
+  # Install Jabba and JDK
+  - ps: (new-object net.webclient).DownloadFile('https://raw.githubusercontent.com/shyiko/jabba/master/install.ps1', 'install.ps1')
+  - ps: powershell ". ""install.ps1"""
+  - ps: '%JABBA_HOME%\bin\jabba install "adopt@1.$($Env:JDK).0-0"'
+  - ps: '%JABBA_HOME%\bin\jabba use "adopt@1.$($Env:JDK).0-0"'
+  - ps: java -Xmx32m -version
+
 build_script:
   - sbt +compile
+
 test_script:
   - sbt +test
+
 cache:
   - '%USERPROFILE%\.ivy2\cache'
   - '%USERPROFILE%\.jabba\jdk'
