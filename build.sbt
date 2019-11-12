@@ -26,7 +26,7 @@ publishTo in ThisBuild := Some(
 
 def commonSettings = Seq(
   fork in Test := true,
-  javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint"),
+  javacOptions in compile ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint"),
   scalacOptions += "-target:jvm-1.8",
   javaOptions in Test ++= Seq("-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"),
   libraryDependencies ++= Seq(
