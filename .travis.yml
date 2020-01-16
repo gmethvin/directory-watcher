@@ -4,8 +4,8 @@ os: linux
 language: scala
 
 scala:
+  - 2.13.1
   - 2.12.10
-  - 2.13.0
 
 env:
   - TRAVIS_JDK=8
@@ -20,11 +20,13 @@ script:
 matrix:
   include:
     - os: osx
-      osx_image: xcode9.4
-      scala: 2.13.0
+      osx_image: xcode10.1
+      scala: 2.13.1
+      env: TRAVIS_JDK=8
     - os: osx
       osx_image: xcode10.1
-      scala: 2.13.0
+      scala: 2.13.1
+      env: TRAVIS_JDK=11
 
 cache:
   directories:
