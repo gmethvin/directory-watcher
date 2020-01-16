@@ -135,7 +135,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     if (fileLevelEvents) {
       flags = flags | kFSEventStreamCreateFlagFileEvents;
     }
-    final FSEventStreamRef stream =
+    final FSEventStreamRef streamRef =
         CarbonAPI.INSTANCE.FSEventStreamCreate(
             Pointer.NULL,
             callback,
@@ -145,7 +145,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
             latency,
             flags);
 
-    final CFRunLoopThread thread = new CFRunLoopThread(stream, file.toFile());
+    final CFRunLoopThread thread = new CFRunLoopThread(streamRef, file.toFile());
     thread.setDaemon(true);
     thread.start();
     threadList.add(thread);
@@ -155,7 +155,8 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
 
   public static class CFRunLoopThread extends Thread {
     private final FSEventStreamRef streamRef;
-    private CFRunLoopRef runLoop;
+    private CFRunLoopRef runLoopRef;
+    private boolean isClosed = false;
 
     public CFRunLoopThread(FSEventStreamRef streamRef, File file) {
       super("WatchService for " + file);
@@ -164,33 +165,34 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
 
     @Override
     public void run() {
-      runLoop = CarbonAPI.INSTANCE.CFRunLoopGetCurrent();
-      final CFStringRef runLoopMode = CFStringRef.toCFString("kCFRunLoopDefaultMode");
-      CarbonAPI.INSTANCE.FSEventStreamScheduleWithRunLoop(streamRef, runLoop, runLoopMode);
-      CarbonAPI.INSTANCE.FSEventStreamStart(streamRef);
+      synchronized (streamRef) {
+        if (isClosed) return;
+        runLoopRef = CarbonAPI.INSTANCE.CFRunLoopGetCurrent();
+        final CFStringRef runLoopMode = CFStringRef.toCFString("kCFRunLoopDefaultMode");
+        CarbonAPI.INSTANCE.FSEventStreamScheduleWithRunLoop(streamRef, runLoopRef, runLoopMode);
+        CarbonAPI.INSTANCE.FSEventStreamStart(streamRef);
+      }
       CarbonAPI.INSTANCE.CFRunLoopRun();
     }
 
-    public CFRunLoopRef getRunLoop() {
-      return runLoop;
-    }
-
-    public FSEventStreamRef getStreamRef() {
-      return streamRef;
+    public void close() {
+      synchronized (streamRef) {
+        if (isClosed) return;
+        if (runLoopRef != null) {
+          CarbonAPI.INSTANCE.CFRunLoopStop(runLoopRef);
+          CarbonAPI.INSTANCE.FSEventStreamStop(streamRef);
+          CarbonAPI.INSTANCE.FSEventStreamInvalidate(streamRef);
+        }
+        CarbonAPI.INSTANCE.FSEventStreamRelease(streamRef);
+        isClosed = true;
+      }
     }
   }
 
   @Override
   public void close() {
     super.close();
-    for (CFRunLoopThread thread : threadList) {
-      CFRunLoopRef runLoopRef = thread.getRunLoop();
-      FSEventStreamRef streamRef = thread.getStreamRef();
-      CarbonAPI.INSTANCE.CFRunLoopStop(runLoopRef);
-      CarbonAPI.INSTANCE.FSEventStreamStop(streamRef);
-      CarbonAPI.INSTANCE.FSEventStreamInvalidate(streamRef);
-      CarbonAPI.INSTANCE.FSEventStreamRelease(streamRef);
-    }
+    threadList.forEach(CFRunLoopThread::close);
     threadList.clear();
     callbackList.clear();
     pathsWatching.clear();

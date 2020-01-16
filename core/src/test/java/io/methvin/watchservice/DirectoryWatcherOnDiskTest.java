@@ -363,6 +363,21 @@ public class DirectoryWatcherOnDiskTest {
     }
   }
 
+  @Test
+  public void testCrash() throws IOException {
+    DirectoryWatcher directoryWatcher1 = DirectoryWatcher.builder().path(this.tmpDir).build();
+    directoryWatcher1.watchAsync();
+    directoryWatcher1.close();
+
+    DirectoryWatcher directoryWatcher2 = DirectoryWatcher.builder().path(this.tmpDir).build();
+    directoryWatcher2.watchAsync();
+    directoryWatcher2.close();
+
+    DirectoryWatcher directoryWatcher3 = DirectoryWatcher.builder().path(this.tmpDir).build();
+    directoryWatcher3.watchAsync();
+    directoryWatcher3.close();
+  }
+
   private boolean existsMatch(Predicate<DirectoryChangeEvent> predicate) {
     return this.recorder.events.stream().anyMatch(predicate);
   }
