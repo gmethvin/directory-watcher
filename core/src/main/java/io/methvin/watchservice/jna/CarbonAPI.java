@@ -16,7 +16,8 @@ package io.methvin.watchservice.jna;
 import com.sun.jna.*;
 
 public interface CarbonAPI extends Library {
-  CarbonAPI INSTANCE = Native.load("Carbon", CarbonAPI.class);
+  // sbt uses JNA 4.5.0, so use JNA 4.x's API
+  CarbonAPI INSTANCE = Native.loadLibrary("Carbon", CarbonAPI.class);
 
   CFArrayRef CFArrayCreate(
       CFAllocatorRef allocator, // always set to Pointer.NULL
