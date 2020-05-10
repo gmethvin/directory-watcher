@@ -13,16 +13,11 @@ developers in ThisBuild := List(
   Developer("gmethvin", "Greg Methvin", "greg@methvin.net", new URL("https://github.com/gmethvin"))
 )
 
-scalaVersion in ThisBuild := "2.13.0"
+scalaVersion in ThisBuild := "2.13.2"
 scalafmtOnCompile in ThisBuild := true
 
 publishMavenStyle in ThisBuild := true
-publishTo in ThisBuild := Some(
-  if (isSnapshot.value)
-    Opts.resolver.sonatypeSnapshots
-  else
-    Opts.resolver.sonatypeStaging
-)
+publishTo in ThisBuild := sonatypePublishToBundle.value
 
 def commonSettings = Seq(
   fork in Test := true,
@@ -43,7 +38,7 @@ lazy val `directory-watcher` = (project in file("core"))
     crossPaths := false,
     libraryDependencies ++= Seq(
       "net.java.dev.jna" % "jna" % "5.5.0",
-      "org.slf4j" % "slf4j-api" % "1.7.29",
+      "org.slf4j" % "slf4j-api" % "1.7.30",
       "io.airlift" % "command" % "0.3" % Test,
       "com.google.guava" % "guava" % "28.1-jre" % Test,
       "org.codehaus.plexus" % "plexus-utils" % "3.3.0" % Test,
@@ -87,8 +82,8 @@ releaseProcess := Seq[ReleaseStep](
   commitReleaseVersion,
   tagRelease,
   releaseStepCommandAndRemaining("+publishSigned"),
+  releaseStepCommand("sonatypeBundleRelease"),
   setNextVersion,
   commitNextVersion,
-  releaseStepCommand("sonatypeReleaseAll"),
   pushChanges
 )
