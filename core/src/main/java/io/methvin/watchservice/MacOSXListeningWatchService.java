@@ -118,14 +118,13 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       WatchablePath watchable, Iterable<? extends WatchEvent.Kind<?>> events) throws IOException {
     checkOpen();
     final MacOSXWatchKey watchKey = new MacOSXWatchKey(this, events, queueSize);
-    final Path file = watchable.getFile();
+    final Path file = watchable.getFile().toAbsolutePath();
     // if we are already watching a parent of this directory, do nothing.
     for (Path watchedPath : pathsWatching) {
       if (file.startsWith(watchedPath)) return watchKey;
     }
     final Map<Path, HashCode> hashCodeMap = PathUtils.createHashCodeMap(file, fileHasher);
-    final String s = file.toFile().getAbsolutePath();
-    final Pointer[] values = {CFStringRef.toCFString(s).getPointer()};
+    final Pointer[] values = {CFStringRef.toCFString(file.toString()).getPointer()};
     final CFArrayRef pathsToWatch =
         CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);
     final CarbonAPI.FSEventStreamCallback callback =

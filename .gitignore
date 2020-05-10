@@ -13,3 +13,4 @@ src_managed/
 .idea_modules
 .bloop
 .metals
+metals.sbt

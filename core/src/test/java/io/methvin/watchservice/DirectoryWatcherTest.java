@@ -68,6 +68,16 @@ public class DirectoryWatcherTest {
   }
 
   @Test
+  public void validateOsxDirectoryWatcherRelativePath() throws Exception {
+    Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
+
+    File directory = new File(new File("").getAbsolutePath(), "target/directory");
+    FileUtils.deleteDirectory(directory);
+    directory.mkdirs();
+    runWatcher(Paths.get("target/directory"), new MacOSXListeningWatchService());
+  }
+
+  @Test
   public void validateOsxDirectoryWatcherNoHashing() throws Exception {
     Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
 
@@ -165,7 +175,7 @@ public class DirectoryWatcherTest {
     List<FileSystemAction> actions = fileSystem.actions();
 
     TestDirectoryChangeListener listener =
-        new TestDirectoryChangeListener(directory, actions, fileHashing);
+        new TestDirectoryChangeListener(directory.toAbsolutePath(), actions, fileHashing);
     DirectoryWatcher watcher =
         DirectoryWatcher.builder()
             .path(directory)
