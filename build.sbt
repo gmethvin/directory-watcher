@@ -37,7 +37,7 @@ lazy val `directory-watcher` = (project in file("core"))
     autoScalaLibrary := false,
     crossPaths := false,
     libraryDependencies ++= Seq(
-      "net.java.dev.jna" % "jna" % "5.5.0",
+      "net.java.dev.jna" % "jna" % "5.6.0",
       "org.slf4j" % "slf4j-api" % "1.7.30",
       "io.airlift" % "command" % "0.3" % Test,
       "com.google.guava" % "guava" % "28.1-jre" % Test,
