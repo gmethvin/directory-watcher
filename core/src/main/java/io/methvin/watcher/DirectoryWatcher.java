@@ -346,14 +346,22 @@ public class DirectoryWatcher {
     if (fileHasher != null || Files.isDirectory(path)) {
       HashCode newHash = PathUtils.hash(fileHasher, path);
       if (newHash == null) {
-        logger.debug("Failed to hash created file [{}]. It may have been deleted.", path);
-        return;
-      }
-      // Notify for the file create if not already notified
-      if (!pathHashes.containsKey(path)) {
-        logger.debug("{} [{}]", EventType.CREATE, path);
-        listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
-        pathHashes.put(path, newHash);
+        // Hashing could fail for locked files on Windows
+        // Skip notification only if we confirm the file does not exist
+        if (Files.notExists(path)) {
+          logger.debug("Failed to hash created file [{}]. It may have been deleted.", path);
+        } else {
+          logger.debug("Failed to hash created file [{}]. It may be locked.", path);
+          logger.debug("{} [{}]", EventType.CREATE, path);
+          listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
+        }
+      } else {
+        // Notify for the file create if not already notified
+        if (!pathHashes.containsKey(path)) {
+          logger.debug("{} [{}]", EventType.CREATE, path);
+          listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
+          pathHashes.put(path, newHash);
+        }
       }
     } else {
       logger.debug("{} [{}]", EventType.CREATE, path);
