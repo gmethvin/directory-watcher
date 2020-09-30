@@ -322,9 +322,9 @@ public class DirectoryWatcherOnDiskTest {
   }
 
   @Test
-  public void doNotEmitCreateEventWhenFileLockedWithHashing()
+  public void emitCreateEventWhenFileLockedWithHashing()
       throws IOException, ExecutionException, InterruptedException {
-    // This test confirms that on Windows we lose the event when the hashed file is locked.
+    // This test confirms that on Windows we don't lose the event when the hashed file is locked.
     Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("win"));
     this.watcher =
         DirectoryWatcher.builder()
@@ -350,7 +350,14 @@ public class DirectoryWatcherOnDiskTest {
         // Expected exception.
       }
 
-      assertEquals("No event for the file creation expected", 0, this.recorder.events.size());
+      assertEquals("Create event for the child file was notified", 1, this.recorder.events.size());
+
+      assertTrue(
+          "Create event for the child file was notified",
+          existsMatch(
+              e ->
+                  e.eventType() == DirectoryChangeEvent.EventType.CREATE
+                      && e.path().getFileName().equals(child.getFileName())));
 
     } finally {
       if (lock != null && channel != null && channel.isOpen()) {
