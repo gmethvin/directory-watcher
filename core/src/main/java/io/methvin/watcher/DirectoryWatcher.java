@@ -355,13 +355,13 @@ public class DirectoryWatcher {
           logger.debug("{} [{}]", EventType.CREATE, path);
           listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
         }
-        return;
-      }
-      // Notify for the file create if not already notified
-      if (!pathHashes.containsKey(path)) {
-        logger.debug("{} [{}]", EventType.CREATE, path);
-        listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
-        pathHashes.put(path, newHash);
+      } else {
+        // Notify for the file create if not already notified
+        if (!pathHashes.containsKey(path)) {
+          logger.debug("{} [{}]", EventType.CREATE, path);
+          listener.onEvent(new DirectoryChangeEvent(EventType.CREATE, path, count));
+          pathHashes.put(path, newHash);
+        }
       }
     } else {
       logger.debug("{} [{}]", EventType.CREATE, path);
