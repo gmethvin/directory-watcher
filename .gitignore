@@ -14,3 +14,4 @@ src_managed/
 .bloop
 .metals
 metals.sbt
+.vscode
