@@ -18,7 +18,7 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.util.Objects;
 
-public final class DirectoryChangeEvent {
+public final class DirectoryChangeEvent<C> {
   public enum EventType {
 
     /* A new file was created */
@@ -47,11 +47,13 @@ public final class DirectoryChangeEvent {
   private final EventType eventType;
   private final Path path;
   private final int count;
+  private final C context;
 
-  public DirectoryChangeEvent(EventType eventType, Path path, int count) {
+  public DirectoryChangeEvent(EventType eventType, Path path, int count, C context) {
     this.eventType = eventType;
     this.path = path;
     this.count = count;
+    this.context = context;
   }
 
   public EventType eventType() {
@@ -64,6 +66,10 @@ public final class DirectoryChangeEvent {
 
   public int count() {
     return count;
+  }
+
+  public C context() {
+    return context;
   }
 
   @Override
@@ -88,6 +94,8 @@ public final class DirectoryChangeEvent {
         + path
         + ", count="
         + count
+        + ", context="
+        + context
         + '}';
   }
 }

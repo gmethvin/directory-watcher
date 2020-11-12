@@ -70,6 +70,10 @@ class AbstractWatchKey implements WatchKey {
     return state.get();
   }
 
+  AbstractWatchService watchService() {
+    return this.watcher;
+  }
+
   /** Gets whether or not this key is subscribed to the given type of event. */
   public boolean subscribesTo(WatchEvent.Kind<?> eventType) {
     return subscribedTypes.contains(eventType);
@@ -148,5 +152,12 @@ class AbstractWatchKey implements WatchKey {
   final void signalEvent(WatchEvent.Kind<Path> kind, Path context) {
     post(new Event<>(kind, 1, context));
     signal();
+  }
+
+  @Override public String toString() {
+    return "AbstractWatchKey{" +
+           "watchable=" + watchable +
+           ", valid=" + valid.get() +
+           '}';
   }
 }
