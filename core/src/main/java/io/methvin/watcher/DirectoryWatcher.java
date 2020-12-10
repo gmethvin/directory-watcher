@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.*;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -38,7 +37,7 @@ import java.util.concurrent.ForkJoinPool;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 import static java.nio.file.StandardWatchEventKinds.*;
 
-public class DirectoryWatcher<C> {
+public class DirectoryWatcher {
 
   /**
    * A builder for a {@link DirectoryWatcher}. Use {@code DirectoryWatcher.builder()} to get a new
@@ -46,7 +45,6 @@ public class DirectoryWatcher<C> {
    */
   public static final class Builder<C> {
     private List<Path> paths = Collections.emptyList();
-    private Map<Path, C> contexts = new HashMap<>();
     private DirectoryChangeListener listener = (event -> {});
     private Logger logger = null;
     private FileHasher fileHasher = FileHasher.DEFAULT_FILE_HASHER;
@@ -57,14 +55,6 @@ public class DirectoryWatcher<C> {
     /** Set multiple paths to watch. */
     public Builder paths(List<Path> paths) {
       this.paths = paths;
-      return this;
-    }
-
-
-    /** Set multiple paths to watch with a context per path. */
-    public Builder paths(Map<Path, C> contexts) {
-      paths(new ArrayList<>(contexts.keySet()));
-      this.contexts = contexts;
       return this;
     }
 
@@ -126,7 +116,7 @@ public class DirectoryWatcher<C> {
       if (logger == null) {
         staticLogger();
       }
-      return new DirectoryWatcher(paths, contexts, listener, watchService, fileHasher, logger);
+      return new DirectoryWatcher(paths, listener, watchService, fileHasher, logger);
     }
 
     private Builder osDefaultWatchService() throws IOException {
@@ -158,8 +148,7 @@ public class DirectoryWatcher<C> {
   private final Logger logger;
 
   private final WatchService watchService;
-  private Map<Path, C> contexts;
-  private Map<Path, C> registeredContexts;
+  private Map<Path, Path> registeredContexts;
   private final boolean isMac;
   private final DirectoryChangeListener listener;
   private final Map<Path, HashCode> pathHashes;
@@ -173,15 +162,13 @@ public class DirectoryWatcher<C> {
 
   public DirectoryWatcher(
       List<Path> paths,
-      Map<Path, C> contexts,
       DirectoryChangeListener listener,
       WatchService watchService,
       FileHasher fileHasher,
       Logger logger)
       throws IOException {
     this.closed = false;
-    this.contexts = contexts;
-    this.registeredContexts = new HashMap<>(contexts);
+    this.registeredContexts = new HashMap<>();
     this.listener = listener;
     this.watchService = watchService;
     this.isMac = watchService instanceof MacOSXListeningWatchService;
@@ -191,7 +178,7 @@ public class DirectoryWatcher<C> {
     this.logger = logger;
 
     for (Path path : paths) {
-      registerAll(path, contexts.get(path));
+      registerAll(path, path);
     }
   }
 
@@ -244,14 +231,14 @@ public class DirectoryWatcher<C> {
                 "WatchService returned key [" + key + "] but it was not found in keyRoots!");
           }
           Path registeredPath = keyRoots.get(key);
-          C context = registeredContexts.get(registeredPath);
+          Path context = registeredContexts.get(registeredPath);
           Path childPath = eventPath == null ? null : keyRoots.get(key).resolve(eventPath);
           logger.debug("{} [{}]", kind, childPath);
           /*
            * If a directory is created, and we're watching recursively, then register it and its sub-directories.
            */
           if (kind == OVERFLOW) {
-            onEvent(count, childPath, EventType.OVERFLOW, context);
+            onEvent(EventType.OVERFLOW, childPath, count, context);
           } else if (eventPath == null) {
             throw new IllegalStateException("WatchService returned a null path for " + kind.name());
           } else if (kind == ENTRY_CREATE) {
@@ -287,19 +274,19 @@ public class DirectoryWatcher<C> {
 
               if (newHash != null && !newHash.equals(existingHash)) {
                 pathHashes.put(childPath, newHash);
-                onEvent(count, childPath, EventType.MODIFY, context);
+                onEvent(EventType.MODIFY, childPath, count, context);
               } else if (newHash == null) {
                 logger.debug(
                     "Failed to hash modified file [{}]. It may have been deleted.", childPath);
               }
             } else {
-              onEvent(count, childPath, EventType.MODIFY, context);
+              onEvent(EventType.MODIFY, childPath, count, context);
             }
           } else if (kind == ENTRY_DELETE) {
             // we cannot tell if the deletion was on file or folder because path points nowhere
             // (file/folder was deleted)
             pathHashes.entrySet().removeIf(e -> e.getKey().startsWith(childPath));
-            onEvent(count, childPath, EventType.DELETE, context);
+            onEvent(EventType.DELETE, childPath, count, context);
           }
         } catch (Exception e) {
           logger.debug("DirectoryWatcher got an exception while watching!", e);
@@ -314,7 +301,6 @@ public class DirectoryWatcher<C> {
 
         // Also remove from the context maps
         registeredContexts.remove(registeredPath);
-        contexts.remove(registeredPath); // it may not be in this one, if it's a nested path. But quicker to remove, than check and remove.
 
         // if there are no more keys left to watch, we can break out
         if (keyRoots.isEmpty()) {
@@ -330,7 +316,7 @@ public class DirectoryWatcher<C> {
     }
   }
 
-  private void onEvent(int count, Path childPath, EventType eventType, C context) throws IOException {
+  private void onEvent(EventType eventType, Path childPath, int count, Path context) throws IOException {
     listener.onEvent(new DirectoryChangeEvent(eventType, childPath, count, context));
   }
 
@@ -338,11 +324,8 @@ public class DirectoryWatcher<C> {
     return listener;
   }
 
-  public Map<Path, C> getContexts() {
-    return contexts;
-  }
 
-  public Map<Path, C> getRegisteredContexts() {
+  public Map<Path, Path> getRegisteredContexts() {
     return registeredContexts;
   }
 
@@ -355,7 +338,7 @@ public class DirectoryWatcher<C> {
     return closed;
   }
 
-  private void registerAll(final Path start, final C context) throws IOException {
+  private void registerAll(final Path start, final Path context) throws IOException {
     if (!Boolean.FALSE.equals(fileTreeSupported)) {
       // Try using FILE_TREE modifier since we aren't certain that it's unsupported
       try {
@@ -376,7 +359,7 @@ public class DirectoryWatcher<C> {
   }
 
   // Internal method to be used by registerAll
-  private void register(Path directory, boolean useFileTreeModifier, C context) throws IOException {
+  private void register(Path directory, boolean useFileTreeModifier, Path context) throws IOException {
     logger.debug("Registering [{}].", directory);
     Watchable watchable = isMac ? new WatchablePath(directory) : directory;
     WatchEvent.Modifier[] modifiers =
@@ -390,7 +373,7 @@ public class DirectoryWatcher<C> {
     registeredContexts.put(directory, context);
   }
 
-  private void notifyCreateEvent(Path path, int count, C context) throws IOException {
+  private void notifyCreateEvent(Path path, int count, Path context) throws IOException {
     if (fileHasher != null || Files.isDirectory(path)) {
       HashCode newHash = PathUtils.hash(fileHasher, path);
       if (newHash == null) {
@@ -401,19 +384,19 @@ public class DirectoryWatcher<C> {
         } else {
           logger.debug("Failed to hash created file [{}]. It may be locked.", path);
           logger.debug("{} [{}]", EventType.CREATE, path);
-          onEvent(count, path, EventType.CREATE, context);
+          onEvent(EventType.CREATE, path, count, context);
         }
       } else {
         // Notify for the file create if not already notified
         if (!pathHashes.containsKey(path)) {
           logger.debug("{} [{}]", EventType.CREATE, path);
-          onEvent(count, path, EventType.CREATE, context);
+          onEvent(EventType.CREATE, path, count, context);
           pathHashes.put(path, newHash);
         }
       }
     } else {
       logger.debug("{} [{}]", EventType.CREATE, path);
-      onEvent(count, path, EventType.CREATE, context);
+      onEvent(EventType.CREATE, path, count, context);
     }
   }
 }

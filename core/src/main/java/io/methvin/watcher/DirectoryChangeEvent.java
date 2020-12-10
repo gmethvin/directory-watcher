@@ -18,7 +18,7 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.util.Objects;
 
-public final class DirectoryChangeEvent<C> {
+public final class DirectoryChangeEvent {
   public enum EventType {
 
     /* A new file was created */
@@ -47,9 +47,9 @@ public final class DirectoryChangeEvent<C> {
   private final EventType eventType;
   private final Path path;
   private final int count;
-  private final C context;
+  private final Path context;
 
-  public DirectoryChangeEvent(EventType eventType, Path path, int count, C context) {
+  public DirectoryChangeEvent(EventType eventType, Path path, int count, Path context) {
     this.eventType = eventType;
     this.path = path;
     this.count = count;
@@ -68,21 +68,28 @@ public final class DirectoryChangeEvent<C> {
     return count;
   }
 
-  public C context() {
+  public Path context() {
     return context;
   }
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
     DirectoryChangeEvent that = (DirectoryChangeEvent) o;
-    return count == that.count && eventType == that.eventType && Objects.equals(path, that.path);
+
+    return count == that.count && eventType == that.eventType && Objects.equals(path, that.path) &&
+           Objects.equals(context, that.context);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(eventType, path, count);
+    return Objects.hash(eventType, path, count, context);
   }
 
   @Override

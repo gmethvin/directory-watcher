@@ -26,6 +26,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.WatchEvent;
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static java.nio.file.StandardWatchEventKinds.*;
@@ -130,7 +131,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     final CFArrayRef pathsToWatch =
         CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);
     final MacOSXListeningCallback callback =
-        new MacOSXListeningCallback(watchKey, fileHasher, hashCodeMap, file.toString(), file.toRealPath().toString());
+        new MacOSXListeningCallback(watchKey, fileHasher, hashCodeMap, file, file.toRealPath());
     callbackList.add(callback);
     int flags = kFSEventStreamCreateFlagNoDefer;
     if (fileLevelEvents) {
@@ -147,7 +148,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
             flags);
 
     final CFRunLoopThread thread = new CFRunLoopThread(streamRef, file.toFile());
-    callback.setRunLoopThread(thread);
+    callback.onClose(() -> {watchKey.watchService().close(thread, callback, file); return null;});
 
     thread.setDaemon(true);
     thread.start();
@@ -205,39 +206,31 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     threadList.remove(runLoopThread);
     callbackList.remove(callback);
     pathsWatching.remove(path);
-
-    new Thread(() -> {
-      // I put this in it's own thread, as I don't fully understand the sync interactions between components in this class
-      // and I wanted to be sure to avoid a deadlock.
-      runLoopThread.close();
-
-    }).start();
+    runLoopThread.close();
   }
 
   private static class MacOSXListeningCallback implements CarbonAPI.FSEventStreamCallback {
     private final MacOSXWatchKey watchKey;
     private final Map<Path, HashCode> hashCodeMap;
     private final FileHasher fileHasher;
-    private final String realPath;
-    private final String absPath;
+    private final Path realPath;
+    private final Path absPath;
+    private final int realPathSize;
 
-    private CFRunLoopThread runLoopThread;
+    private Callable<Void>  onCloseCallback;
 
     private MacOSXListeningCallback(
-        MacOSXWatchKey watchKey, FileHasher fileHasher, Map<Path, HashCode> hashCodeMap, String absPath, String realPath) {
+        MacOSXWatchKey watchKey, FileHasher fileHasher, Map<Path, HashCode> hashCodeMap, Path absPath, Path realPath) {
       this.watchKey = watchKey;
       this.hashCodeMap = hashCodeMap;
       this.fileHasher = fileHasher;
       this.realPath = realPath;
       this.absPath = absPath;
+      this.realPathSize = realPath.toString().length() + 1;
     }
 
-    public CFRunLoopThread getRunLoopThread() {
-      return runLoopThread;
-    }
-
-    public void setRunLoopThread(CFRunLoopThread runLoopThread) {
-      this.runLoopThread = runLoopThread;
+    public void onClose(Callable<Void> callback) {
+      this.onCloseCallback = callback;
     }
 
     @Override
@@ -251,16 +244,19 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       final int length = numEvents.intValue();
 
       for (String fileName : eventPaths.getStringArray(0, length)) {
-        fileName = absPath + fileName.substring(realPath.length());
         /*
          * Note: If file-level events are enabled, fileName will be an individual file so we usually won't recurse.
+         *       It is necessary to normalise the filename back to what is used in the key roots.
+         *       Because the watcher returns real paths, but relative paths may have be used in the key roots;
          */
-        Path path = new File(fileName).toPath();
+
+        // only substring, if there are child paths, else just return absPath
+        Path path = fileName.length() + 1 != realPathSize ? absPath.resolve(fileName.substring(realPathSize)) : absPath;
         final Set<Path> filesOnDisk;
         try {
           filesOnDisk = PathUtils.recursiveListFiles(path);
         } catch (IOException e) {
-          throw new IllegalStateException("Could not recursively list files for " + fileName, e);
+          throw new IllegalStateException("Could not recursively list files for " + path, e);
         }
         /*
          * We collect and process all actions for each category of created, modified and deleted as it appears a first thread
@@ -286,11 +282,12 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
           }
         }
 
-        List<Path>  deletedPaths = findDeletedFiles(fileName, filesOnDisk);
+
+        List<Path>  deletedPaths = findDeletedFiles(path, filesOnDisk);
 
         if (hashCodeMap.isEmpty()) {
-          // all underlying paths are gone, so stop this service and cancel the key
-          watchKey.watchService().close(runLoopThread, this, Paths.get(absPath));
+          // all underlying paths are gone, cancel the key.
+          // This must happen before this event, so that DirectoryWatch also cleans up
           watchKey.cancel();
         }
 
@@ -300,7 +297,15 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
           }
         }
 
-
+        if (hashCodeMap.isEmpty()) {
+          // all underlying paths are gone, so stop this service and cancel the key
+          // These is separated here to go after, in case it throws an exception.
+          try {
+            onCloseCallback.call();
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        }
       }
     }
 
@@ -331,10 +336,10 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       return createdFileList;
     }
 
-    private List<Path> findDeletedFiles(String name, Set<Path> filesOnDisk) {
+    private List<Path> findDeletedFiles(Path path, Set<Path> filesOnDisk) {
       List<Path> deletedFileList = new ArrayList<Path>();
       for (Path file : hashCodeMap.keySet()) {
-        if (file.toFile().getAbsolutePath().startsWith(name) && !filesOnDisk.contains(file)) {
+        if (file.toFile().getAbsolutePath().startsWith(path.toString()) && !filesOnDisk.contains(file)) {
           deletedFileList.add(file);
           hashCodeMap.remove(file);
         }
