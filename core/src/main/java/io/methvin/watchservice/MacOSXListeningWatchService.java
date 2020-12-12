@@ -148,7 +148,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
             flags);
 
     final CFRunLoopThread thread = new CFRunLoopThread(streamRef, file.toFile());
-    callback.onClose(() -> {watchKey.watchService().close(thread, callback, file); return null;});
+    callback.onClose(() -> {watchKey.watchService().close(thread, callback, file);});
 
     thread.setDaemon(true);
     thread.start();
@@ -217,7 +217,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     private final Path absPath;
     private final int realPathSize;
 
-    private Callable<Void>  onCloseCallback;
+    private Runnable  onCloseCallback;
 
     private MacOSXListeningCallback(
         MacOSXWatchKey watchKey, FileHasher fileHasher, Map<Path, HashCode> hashCodeMap, Path absPath, Path realPath) {
@@ -229,7 +229,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       this.realPathSize = realPath.toString().length() + 1;
     }
 
-    public void onClose(Callable<Void> callback) {
+    public void onClose(Runnable callback) {
       this.onCloseCallback = callback;
     }
 
@@ -301,7 +301,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
           // all underlying paths are gone, so stop this service and cancel the key
           // These is separated here to go after, in case it throws an exception.
           try {
-            onCloseCallback.call();
+            onCloseCallback.run();
           } catch (Exception e) {
             throw new RuntimeException(e);
           }
