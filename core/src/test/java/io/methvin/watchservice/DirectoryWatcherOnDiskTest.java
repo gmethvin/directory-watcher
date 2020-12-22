@@ -14,14 +14,10 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.io.UncheckedIOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -411,23 +407,20 @@ public class DirectoryWatcherOnDiskTest {
             DirectoryWatcher.builder()
                             .paths(Arrays.asList( new Path[] {p1,p2, p3}))
                             .listener(this.recorder)
-                            .fileHashing(false)
+                            .fileHashing(true)
                             .build();
     this.watcher.watchAsync();
     assertFalse( this.watcher.isClosed() );
 
     ensureStill();
 
-    assertEquals(3, this.watcher.getRegisteredContexts().size());
-
-    //List<Path> paths = new ArrayList<>();
     List<Path> paths1 = createStructure2(p1);
     List<Path> paths2 = createStructure2(p2);
     List<Path> paths3 = createStructure2(p3);
 
     await().atMost(3, TimeUnit.SECONDS)
               .pollDelay(100, TimeUnit.MILLISECONDS)
-              .untilAsserted(() -> Assume.assumeTrue(this.recorder.events.size() == 33));
+              .untilAsserted(() -> Assume.assumeTrue(this.recorder.events.size() == 15));
 
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
@@ -451,19 +444,16 @@ public class DirectoryWatcherOnDiskTest {
     FileUtils.deleteDirectory(paths1.get(0).toFile()); // deletes the p1 root
     await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 2);
     checkEventsMatchContext(p1, p2, p3);
-    assertEquals(2, this.watcher.getRegisteredContexts().size());
     this.recorder.events.clear();
 
     FileUtils.deleteDirectory(paths2.get(0).toFile()); // deletes the p1 root
     await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 6);
     checkEventsMatchContext(p1, p2, p3);
-    assertEquals(1, this.watcher.getRegisteredContexts().size());
     this.recorder.events.clear();
 
     assertFalse( this.watcher.isClosed() );
     FileUtils.deleteDirectory(paths3.get(0).toFile()); // deletes the p1 root
     await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 6);
-    assertEquals(0, this.watcher.getRegisteredContexts().size());
     assertTrue( this.watcher.isClosed() );
   }
 
@@ -497,11 +487,11 @@ public class DirectoryWatcherOnDiskTest {
   private void checkEventsMatchContext(Path p1, Path p2, Path p3) {
     this.recorder.events.stream().forEach( e -> {
       if ( e.path().startsWith(p1) ) {
-        assertEquals(p1, e.context());
+        assertEquals(p1, e.rootPath());
       } else if ( e.path().startsWith(p2) ) {
-        assertEquals(p2, e.context());
+        assertEquals(p2, e.rootPath());
       } else if ( e.path().startsWith(p3) ) {
-        assertEquals(p3, e.context());
+        assertEquals(p3, e.rootPath());
       } else {
         Assert.fail("Path must match one of the p1, p2 or p3 Path subsets");
       }
