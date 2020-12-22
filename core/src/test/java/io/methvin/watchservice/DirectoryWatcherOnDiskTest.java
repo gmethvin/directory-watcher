@@ -95,7 +95,10 @@ public class DirectoryWatcherOnDiskTest {
     copyAndVerifyEvents(structure);
 
     await().atMost(5, TimeUnit.SECONDS).until(() -> tmpDir.toFile().listFiles().length == 0);
-    await().atMost(5, TimeUnit.SECONDS).until(() -> this.recorder.events.size() == 6);
+
+    await().atMost(5, TimeUnit.SECONDS)
+            .pollDelay(100, TimeUnit.MILLISECONDS)
+            .untilAsserted(() -> Assume.assumeTrue(this.recorder.events.size() == 6));
 
     // reset recorder
     this.recorder.events.clear();
@@ -121,7 +124,9 @@ public class DirectoryWatcherOnDiskTest {
     await().atMost(5, TimeUnit.SECONDS).until(() -> tmpDir.toFile().listFiles().length == 0);
 
     // it sometimes returns 8 (when run on it's own), sometimes 10 (when run with other tests).
-    await().atMost(5, TimeUnit.SECONDS).until(() -> this.recorder.events.size() == 8 || this.recorder.events.size() == 10);
+    await().atMost(5, TimeUnit.SECONDS)
+            .pollDelay(100, TimeUnit.MILLISECONDS)
+            .untilAsserted(() -> Assume.assumeTrue(this.recorder.events.size() == 8 || this.recorder.events.size() == 10));
 
     // reset recorder
     this.recorder.events.clear();
@@ -420,7 +425,10 @@ public class DirectoryWatcherOnDiskTest {
     List<Path> paths2 = createStructure2(p2);
     List<Path> paths3 = createStructure2(p3);
 
-    await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 33);
+    await().atMost(3, TimeUnit.SECONDS)
+              .pollDelay(100, TimeUnit.MILLISECONDS)
+              .untilAsserted(() -> Assume.assumeTrue(this.recorder.events.size() == 33));
+
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
 
