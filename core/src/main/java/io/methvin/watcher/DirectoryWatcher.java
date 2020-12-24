@@ -43,7 +43,7 @@ public class DirectoryWatcher {
    * A builder for a {@link DirectoryWatcher}. Use {@code DirectoryWatcher.builder()} to get a new
    * instance.
    */
-  public static final class Builder<C> {
+  public static final class Builder {
     private List<Path> paths = Collections.emptyList();
     private DirectoryChangeListener listener = (event -> {});
     private Logger logger = null;
@@ -145,14 +145,13 @@ public class DirectoryWatcher {
     return new Builder();
   }
 
-  private final Logger logger;
-
-  private final WatchService watchService;
-  private Map<Path, Path>    registeredPathToRootPath;
-  private final boolean      isMac;
+  private final Logger                  logger;
+  private final WatchService            watchService;
+  private final Map<Path, Path>         registeredPathToRootPath;
+  private final boolean                 isMac;
   private final DirectoryChangeListener listener;
-  private final Map<Path, HashCode> pathHashes;
-  private final Map<WatchKey, Path> keyRoots;
+  private final Map<Path, HashCode>     pathHashes;
+  private final Map<WatchKey, Path>     keyRoots;
 
   // this is set to true/false depending on whether recursive watching is supported natively
   private Boolean fileTreeSupported = null;

@@ -131,7 +131,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     final CFArrayRef pathsToWatch =
         CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);
     final MacOSXListeningCallback callback =
-        new MacOSXListeningCallback(watchKey, fileHasher, hashCodeMap, file, file.toRealPath());
+        new MacOSXListeningCallback(watchKey, fileHasher, hashCodeMap, file);
     callbackList.add(callback);
     int flags = kFSEventStreamCreateFlagNoDefer;
     if (fileLevelEvents) {
@@ -148,7 +148,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
             flags);
 
     final CFRunLoopThread thread = new CFRunLoopThread(streamRef, file.toFile());
-    callback.onClose(() -> {watchKey.watchService().close(thread, callback, file);});
+    callback.onClose(() -> {close(thread, callback, file);});
 
     thread.setDaemon(true);
     thread.start();
@@ -220,11 +220,11 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     private Runnable  onCloseCallback;
 
     private MacOSXListeningCallback(
-        MacOSXWatchKey watchKey, FileHasher fileHasher, Map<Path, HashCode> hashCodeMap, Path absPath, Path realPath) {
+        MacOSXWatchKey watchKey, FileHasher fileHasher, Map<Path, HashCode> hashCodeMap, Path absPath) throws IOException {
       this.watchKey = watchKey;
       this.hashCodeMap = hashCodeMap;
       this.fileHasher = fileHasher;
-      this.realPath = realPath;
+      this.realPath = absPath.toRealPath();
       this.absPath = absPath;
       this.realPathSize = realPath.toString().length() + 1;
     }
@@ -298,7 +298,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
         }
 
         if (hashCodeMap.isEmpty()) {
-          // all underlying paths are gone, so stop this service and cancel the key
+          // all underlying paths are gone, so stop this service
           // These is separated here to go after, in case it throws an exception.
           try {
             onCloseCallback.run();
