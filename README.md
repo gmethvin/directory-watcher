@@ -1,6 +1,6 @@
 # Directory Watcher
 
-[![Travis CI](https://travis-ci.org/gmethvin/directory-watcher.svg?branch=master)](https://travis-ci.org/gmethvin/directory-watcher) [![AppVeyor CI](https://ci.appveyor.com/api/projects/status/j8u639uf2iovtf15/branch/master?svg=true)](https://ci.appveyor.com/project/gmethvin/directory-watcher/branch/master) [![Maven](https://img.shields.io/maven-central/v/io.methvin/directory-watcher.svg)](https://mvnrepository.com/artifact/io.methvin/directory-watcher)
+[![Maven](https://img.shields.io/maven-central/v/io.methvin/directory-watcher.svg)](https://mvnrepository.com/artifact/io.methvin/directory-watcher)
 
 A directory watcher utility for JDK 8+ that aims to provide accurate and efficient recursive watching for Linux, macOS and Windows. In particular, this library provides a JNA-based `WatchService` for Mac OS X to replace the default polling-based JDK implementation.
 
