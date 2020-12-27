@@ -145,13 +145,13 @@ public class DirectoryWatcher {
     return new Builder();
   }
 
-  private final Logger                  logger;
-  private final WatchService            watchService;
-  private final Map<Path, Path>         registeredPathToRootPath;
-  private final boolean                 isMac;
+  private final Logger logger;
+  private final WatchService watchService;
+  private final Map<Path, Path> registeredPathToRootPath;
+  private final boolean isMac;
   private final DirectoryChangeListener listener;
-  private final Map<Path, HashCode>     pathHashes;
-  private final Map<WatchKey, Path>     keyRoots;
+  private final Map<Path, HashCode> pathHashes;
+  private final Map<WatchKey, Path> keyRoots;
 
   // this is set to true/false depending on whether recursive watching is supported natively
   private Boolean fileTreeSupported = null;
@@ -315,7 +315,8 @@ public class DirectoryWatcher {
     }
   }
 
-  private void onEvent(EventType eventType, Path childPath, int count, Path rootPath) throws IOException {
+  private void onEvent(EventType eventType, Path childPath, int count, Path rootPath)
+      throws IOException {
     listener.onEvent(new DirectoryChangeEvent(eventType, childPath, count, rootPath));
   }
 
@@ -353,7 +354,8 @@ public class DirectoryWatcher {
   }
 
   // Internal method to be used by registerAll
-  private void register(Path directory, boolean useFileTreeModifier, Path context) throws IOException {
+  private void register(Path directory, boolean useFileTreeModifier, Path context)
+      throws IOException {
     logger.debug("Registering [{}].", directory);
     Watchable watchable = isMac ? new WatchablePath(directory) : directory;
     WatchEvent.Modifier[] modifiers =

@@ -154,10 +154,8 @@ class AbstractWatchKey implements WatchKey {
     signal();
   }
 
-  @Override public String toString() {
-    return "AbstractWatchKey{" +
-           "watchable=" + watchable +
-           ", valid=" + valid.get() +
-           '}';
+  @Override
+  public String toString() {
+    return "AbstractWatchKey{" + "watchable=" + watchable + ", valid=" + valid.get() + '}';
   }
 }

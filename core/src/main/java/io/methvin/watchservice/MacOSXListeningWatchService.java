@@ -148,7 +148,10 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
             flags);
 
     final CFRunLoopThread thread = new CFRunLoopThread(streamRef, file.toFile());
-    callback.onClose(() -> {close(thread, callback, file);});
+    callback.onClose(
+        () -> {
+          close(thread, callback, file);
+        });
 
     thread.setDaemon(true);
     thread.start();
@@ -202,7 +205,8 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     pathsWatching.clear();
   }
 
-  public synchronized void close(CFRunLoopThread runLoopThread, CarbonAPI.FSEventStreamCallback callback, Path path) {
+  public synchronized void close(
+      CFRunLoopThread runLoopThread, CarbonAPI.FSEventStreamCallback callback, Path path) {
     threadList.remove(runLoopThread);
     callbackList.remove(callback);
     pathsWatching.remove(path);
@@ -217,10 +221,14 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     private final Path absPath;
     private final int realPathSize;
 
-    private Runnable  onCloseCallback;
+    private Runnable onCloseCallback;
 
     private MacOSXListeningCallback(
-        MacOSXWatchKey watchKey, FileHasher fileHasher, Map<Path, HashCode> hashCodeMap, Path absPath) throws IOException {
+        MacOSXWatchKey watchKey,
+        FileHasher fileHasher,
+        Map<Path, HashCode> hashCodeMap,
+        Path absPath)
+        throws IOException {
       this.watchKey = watchKey;
       this.hashCodeMap = hashCodeMap;
       this.fileHasher = fileHasher;
@@ -251,7 +259,10 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
          */
 
         // only substring, if there are child paths, else just return absPath
-        Path path = fileName.length() + 1 != realPathSize ? absPath.resolve(fileName.substring(realPathSize)) : absPath;
+        Path path =
+            fileName.length() + 1 != realPathSize
+                ? absPath.resolve(fileName.substring(realPathSize))
+                : absPath;
         final Set<Path> filesOnDisk;
         try {
           filesOnDisk = PathUtils.recursiveListFiles(path);
@@ -282,8 +293,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
           }
         }
 
-
-        List<Path>  deletedPaths = findDeletedFiles(path, filesOnDisk);
+        List<Path> deletedPaths = findDeletedFiles(path, filesOnDisk);
 
         if (hashCodeMap.isEmpty()) {
           // all underlying paths are gone, cancel the key.
@@ -339,7 +349,8 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     private List<Path> findDeletedFiles(Path path, Set<Path> filesOnDisk) {
       List<Path> deletedFileList = new ArrayList<Path>();
       for (Path file : hashCodeMap.keySet()) {
-        if (file.toFile().getAbsolutePath().startsWith(path.toString()) && !filesOnDisk.contains(file)) {
+        if (file.toFile().getAbsolutePath().startsWith(path.toString())
+            && !filesOnDisk.contains(file)) {
           deletedFileList.add(file);
           hashCodeMap.remove(file);
         }

@@ -46,7 +46,7 @@ public final class DirectoryChangeEvent {
 
   private final EventType eventType;
   private final Path path;
-  private final int  count;
+  private final int count;
   private final Path rootPath;
 
   public DirectoryChangeEvent(EventType eventType, Path path, int count, Path rootPath) {
@@ -83,8 +83,10 @@ public final class DirectoryChangeEvent {
 
     DirectoryChangeEvent that = (DirectoryChangeEvent) o;
 
-    return count == that.count && eventType == that.eventType && Objects.equals(path, that.path) &&
-           Objects.equals(rootPath, that.rootPath);
+    return count == that.count
+        && eventType == that.eventType
+        && Objects.equals(path, that.path)
+        && Objects.equals(rootPath, that.rootPath);
   }
 
   @Override
@@ -95,14 +97,14 @@ public final class DirectoryChangeEvent {
   @Override
   public String toString() {
     return "DirectoryChangeEvent{"
-           + "eventType="
-           + eventType
-           + ", path="
-           + path
-           + ", count="
-           + count
-           + ", rootPath="
-           + rootPath
-           + '}';
+        + "eventType="
+        + eventType
+        + ", path="
+        + path
+        + ", count="
+        + count
+        + ", rootPath="
+        + rootPath
+        + '}';
   }
 }
