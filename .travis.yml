@@ -1,14 +1,12 @@
-sudo: false
 os: linux
 language: scala
 
 scala:
-  - 2.13.2
-  - 2.12.10
+  - 2.13.3
 
 env:
   - TRAVIS_JDK=8
-  - TRAVIS_JDK=13
+  - TRAVIS_JDK=15
 
 before_install: curl -Ls https://git.io/jabba | bash && . ~/.jabba/jabba.sh
 install: jabba install "adopt@~1.$TRAVIS_JDK.0-0" && jabba use "$_" && java -Xmx32m -version
@@ -16,16 +14,18 @@ install: jabba install "adopt@~1.$TRAVIS_JDK.0-0" && jabba use "$_" && java -Xmx
 script:
   - sbt ++$TRAVIS_SCALA_VERSION compile test publishLocal
 
-matrix:
+jobs:
   include:
-    - os: osx
-      osx_image: xcode10.1
-      scala: 2.13.2
+    - scala: 2.12.10
       env: TRAVIS_JDK=8
     - os: osx
       osx_image: xcode10.1
-      scala: 2.13.2
-      env: TRAVIS_JDK=13
+      scala: 2.13.3
+      env: TRAVIS_JDK=8
+    - os: osx
+      osx_image: xcode10.1
+      scala: 2.13.3
+      env: TRAVIS_JDK=15
 
 cache:
   directories:

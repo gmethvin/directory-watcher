@@ -41,6 +41,14 @@ public class DirectoryWatcherOnDiskTest {
   private EventRecorder recorder;
   private DirectoryWatcher watcher;
 
+  private boolean isWin() {
+    return System.getProperty("os.name").toLowerCase().contains("win");
+  }
+
+  private boolean isMac() {
+    return System.getProperty("os.name").toLowerCase().contains("mac");
+  }
+
   @Before
   public void setUp() throws IOException {
     this.tmpDir = Files.createTempDirectory(null);
@@ -49,7 +57,10 @@ public class DirectoryWatcherOnDiskTest {
 
   @After
   public void tearDown() throws IOException {
-    FileUtils.deleteDirectory(this.tmpDir.toFile());
+    try {
+      FileUtils.deleteDirectory(this.tmpDir.toFile());
+    } catch (Exception e) {
+    }
   }
 
   @Test
@@ -92,12 +103,9 @@ public class DirectoryWatcherOnDiskTest {
 
     await().atMost(5, TimeUnit.SECONDS).until(() -> tmpDir.toFile().listFiles().length == 0);
 
-    await().atMost(5, TimeUnit.SECONDS)
-            .pollDelay(100, TimeUnit.MILLISECONDS)
-            .untilAsserted(() -> Assume.assumeTrue(this.recorder.events.size() == 6));
-
     // reset recorder
-    this.recorder.events.clear();
+    ensureStill();
+
     copyAndVerifyEvents(structure);
     this.watcher.close();
   }
@@ -119,13 +127,9 @@ public class DirectoryWatcherOnDiskTest {
 
     await().atMost(5, TimeUnit.SECONDS).until(() -> tmpDir.toFile().listFiles().length == 0);
 
-    // it sometimes returns 8 (when run on it's own), sometimes 10 (when run with other tests).
-    await().atMost(5, TimeUnit.SECONDS)
-            .pollDelay(100, TimeUnit.MILLISECONDS)
-            .untilAsserted(() -> Assume.assumeTrue(this.recorder.events.size() == 8 || this.recorder.events.size() == 10));
-
     // reset recorder
-    this.recorder.events.clear();
+    ensureStill();
+
     copyAndVerifyEvents(structure);
     this.watcher.close();
   }
@@ -140,7 +144,8 @@ public class DirectoryWatcherOnDiskTest {
                   assertTrue(
                       "Create event for the parent directory was notified",
                       existsMatch(
-                          e -> e.eventType() == DirectoryChangeEvent.EventType.CREATE
+                          e ->
+                              e.eventType() == DirectoryChangeEvent.EventType.CREATE
                                   && e.path()
                                       .getFileName()
                                       .equals(structure.get(0).getFileName()))));
@@ -171,9 +176,10 @@ public class DirectoryWatcherOnDiskTest {
                                       .getFileName()
                                       .equals(structure.get(2).getFileName()))));
     } finally {
-      /* unfortunately this deletion does not simulate 'real' deletion by the user, as it
-       * deletes all the files underneath. You can stop the execution of the test here and
-       * delete the folder by hand and then continue with the test.
+      /*
+       * unfortunately this deletion does not simulate 'real' deletion by the user, as
+       * it deletes all the files underneath. You can stop the execution of the test
+       * here and delete the folder by hand and then continue with the test.
        */
       FileUtils.deleteDirectory(tmpDir.toFile().listFiles()[0]);
     }
@@ -293,7 +299,7 @@ public class DirectoryWatcherOnDiskTest {
   @Test
   public void emitCreateEventWhenFileLockedNoHashing()
       throws IOException, ExecutionException, InterruptedException {
-    Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("win"));
+    Assume.assumeTrue(isWin());
 
     this.watcher =
         DirectoryWatcher.builder()
@@ -342,8 +348,9 @@ public class DirectoryWatcherOnDiskTest {
   @Test
   public void emitCreateEventWhenFileLockedWithHashing()
       throws IOException, ExecutionException, InterruptedException {
-    // This test confirms that on Windows we don't lose the event when the hashed file is locked.
-    Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("win"));
+    // This test confirms that on Windows we don't lose the event when the hashed
+    // file is locked.
+    Assume.assumeTrue(isWin());
     this.watcher =
         DirectoryWatcher.builder()
             .path(this.tmpDir)
@@ -394,23 +401,18 @@ public class DirectoryWatcherOnDiskTest {
     Path p2 = this.tmpDir.resolve("parent2");
     Path p3 = this.tmpDir.resolve("parent3");
 
-    Map<Path, String> contexts = new HashMap<>();
-    contexts.put(p1, "p1");
-    contexts.put(p2, "p2");
-    contexts.put(p3, "p3");
-
     Files.createDirectory(p1);
     Files.createDirectory(p2);
     Files.createDirectory(p3);
 
     this.watcher =
-            DirectoryWatcher.builder()
-                            .paths(Arrays.asList( new Path[] {p1,p2, p3}))
-                            .listener(this.recorder)
-                            .fileHashing(true)
-                            .build();
+        DirectoryWatcher.builder()
+            .paths(Arrays.asList(new Path[] {p1, p2, p3}))
+            .listener(this.recorder)
+            .fileHashing(true)
+            .build();
     this.watcher.watchAsync();
-    assertFalse( this.watcher.isClosed() );
+    assertFalse(this.watcher.isClosed());
 
     ensureStill();
 
@@ -418,9 +420,10 @@ public class DirectoryWatcherOnDiskTest {
     List<Path> paths2 = createStructure2(p2);
     List<Path> paths3 = createStructure2(p3);
 
-    await().atMost(3, TimeUnit.SECONDS)
-              .pollDelay(100, TimeUnit.MILLISECONDS)
-              .untilAsserted(() -> Assume.assumeTrue(this.recorder.events.size() == 15));
+    await()
+        .atMost(3, TimeUnit.SECONDS)
+        .pollDelay(100, TimeUnit.MILLISECONDS)
+        .until(() -> this.recorder.events.size() == 15);
 
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
@@ -435,67 +438,83 @@ public class DirectoryWatcherOnDiskTest {
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
 
-
     FileUtils.deleteDirectory(paths1.get(2).toFile());
     await().atMost(3, TimeUnit.HOURS).until(() -> recorder.events.size() == 4);
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
-    ;
-    FileUtils.deleteDirectory(paths1.get(0).toFile()); // deletes the p1 root
-    await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 2);
+
+    FileUtils.deleteDirectory(paths2.get(2).toFile());
+    await().atMost(3, TimeUnit.HOURS).until(() -> recorder.events.size() == 4);
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
 
-    FileUtils.deleteDirectory(paths2.get(0).toFile()); // deletes the p1 root
-    await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 6);
+    FileUtils.deleteDirectory(paths3.get(2).toFile());
+    await().atMost(3, TimeUnit.HOURS).until(() -> recorder.events.size() == 4);
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
 
-    assertFalse( this.watcher.isClosed() );
-    FileUtils.deleteDirectory(paths3.get(0).toFile()); // deletes the p1 root
-    await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 6);
-    assertTrue( this.watcher.isClosed() );
+    if (isMac()) {
+      // macOS watcher sends delete events for the parent
+      FileUtils.deleteDirectory(paths1.get(0).toFile()); // deletes the p1 root
+      await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 2);
+      checkEventsMatchContext(p1, p2, p3);
+      this.recorder.events.clear();
+
+      FileUtils.deleteDirectory(paths2.get(0).toFile()); // deletes the p2 root
+      await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 2);
+      checkEventsMatchContext(p1, p2, p3);
+      this.recorder.events.clear();
+
+      assertFalse(this.watcher.isClosed());
+      FileUtils.deleteDirectory(paths3.get(0).toFile()); // deletes the p3 root
+      await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 2);
+      assertTrue(this.watcher.isClosed());
+    }
   }
 
   private void ensureStill() {
     // I found some tests unstable with regards to counts, unless this was here
     try {
       Thread.sleep(TimeUnit.SECONDS.toMillis(1));
-      while ( recorder.events.size() != 0 ) {
+      while (recorder.events.size() != 0) {
         recorder.events.clear();
         Thread.sleep(TimeUnit.SECONDS.toMillis(1));
       }
     } catch (InterruptedException e) {
       throw new UncheckedExecutionException(e);
     }
-
   }
 
   private byte counter = 1;
+
   private void updatePaths(List<Path>... paths) throws IOException {
-    Arrays.stream( paths).forEach(path -> {
-      try {
-        Files.write(path.get(1), new byte[] {counter++});
-        Files.write(path.get(3), new byte[] {counter++});
-        Files.write(path.get(5), new byte[] {counter++});
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-    });
+    Arrays.stream(paths)
+        .forEach(
+            path -> {
+              try {
+                Files.write(path.get(1), new byte[] {counter++});
+                Files.write(path.get(3), new byte[] {counter++});
+                Files.write(path.get(5), new byte[] {counter++});
+              } catch (IOException e) {
+                e.printStackTrace();
+              }
+            });
   }
 
   private void checkEventsMatchContext(Path p1, Path p2, Path p3) {
-    this.recorder.events.stream().forEach( e -> {
-      if ( e.path().startsWith(p1) ) {
-        assertEquals(p1, e.rootPath());
-      } else if ( e.path().startsWith(p2) ) {
-        assertEquals(p2, e.rootPath());
-      } else if ( e.path().startsWith(p3) ) {
-        assertEquals(p3, e.rootPath());
-      } else {
-        Assert.fail("Path must match one of the p1, p2 or p3 Path subsets");
-      }
-    });
+    this.recorder.events.stream()
+        .forEach(
+            e -> {
+              if (e.path().startsWith(p1)) {
+                assertEquals(p1, e.rootPath());
+              } else if (e.path().startsWith(p2)) {
+                assertEquals(p2, e.rootPath());
+              } else if (e.path().startsWith(p3)) {
+                assertEquals(p3, e.rootPath());
+              } else {
+                Assert.fail("Path must match one of the p1, p2 or p3 Path subsets");
+              }
+            });
   }
 
   private List<Path> createStructure2(Path parent) throws IOException {

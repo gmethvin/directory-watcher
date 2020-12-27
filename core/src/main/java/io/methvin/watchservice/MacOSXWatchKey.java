@@ -24,9 +24,10 @@ class MacOSXWatchKey extends AbstractWatchKey {
   private final boolean reportDeleteEvents;
 
   public MacOSXWatchKey(
-          AbstractWatchService macOSXWatchService,
-          WatchablePath watchable, Iterable<? extends WatchEvent.Kind<?>> events,
-          int queueSize) {
+      AbstractWatchService macOSXWatchService,
+      WatchablePath watchable,
+      Iterable<? extends WatchEvent.Kind<?>> events,
+      int queueSize) {
     super(macOSXWatchService, watchable, events, queueSize);
     boolean reportCreateEvents = false;
     boolean reportModifyEvents = false;
