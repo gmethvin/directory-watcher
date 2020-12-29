@@ -13,22 +13,22 @@ developers in ThisBuild := List(
   Developer("gmethvin", "Greg Methvin", "greg@methvin.net", new URL("https://github.com/gmethvin"))
 )
 
-scalaVersion in ThisBuild := "2.13.2"
+scalaVersion in ThisBuild := "2.13.3"
 scalafmtOnCompile in ThisBuild := true
 
 publishMavenStyle in ThisBuild := true
 publishTo in ThisBuild := sonatypePublishToBundle.value
 
-def commonSettings = Seq(
-  fork in Test := true,
-  javacOptions in compile ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint"),
-  scalacOptions += "-target:jvm-1.8",
-  javaOptions in Test ++= Seq("-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"),
-  libraryDependencies ++= Seq(
-    "com.novocode" % "junit-interface" % "0.11" % Test,
-    "org.slf4j" % "slf4j-simple" % "1.7.29" % Test
+def commonSettings =
+  Seq(
+    fork in Test := true,
+    javacOptions in compile ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint"),
+    scalacOptions += "-target:jvm-1.8",
+    libraryDependencies ++= Seq(
+      "com.novocode" % "junit-interface" % "0.11" % Test,
+      "ch.qos.logback" % "logback-classic" % "1.2.3" % Test
+    )
   )
-)
 
 // directory-watcher is a Java-only library. No Scala dependencies should be added.
 lazy val `directory-watcher` = (project in file("core"))
@@ -40,10 +40,10 @@ lazy val `directory-watcher` = (project in file("core"))
       "net.java.dev.jna" % "jna" % "5.6.0",
       "org.slf4j" % "slf4j-api" % "1.7.30",
       "io.airlift" % "command" % "0.3" % Test,
-      "com.google.guava" % "guava" % "28.1-jre" % Test,
+      "com.google.guava" % "guava" % "30.1-jre" % Test,
       "org.codehaus.plexus" % "plexus-utils" % "3.3.0" % Test,
-      "commons-io" % "commons-io" % "2.6" % Test,
-      "org.awaitility" % "awaitility" % "4.0.1" % Test
+      "commons-io" % "commons-io" % "2.8.0" % Test,
+      "org.awaitility" % "awaitility" % "4.0.2" % Test
     )
   )
 
@@ -54,8 +54,8 @@ lazy val `directory-watcher-better-files` = (project in file("better-files"))
     crossScalaVersions := Seq(scalaVersion.value, "2.12.10"),
     crossPaths := true,
     libraryDependencies ++= Seq(
-      "com.github.pathikrit" %% "better-files" % "3.8.0",
-      "org.scalatest" %% "scalatest" % "3.0.8" % Test
+      "com.github.pathikrit" %% "better-files" % "3.9.1",
+      "org.scalatest" %% "scalatest" % "3.2.2" % Test
     )
   )
   .dependsOn(`directory-watcher`)

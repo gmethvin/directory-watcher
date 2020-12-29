@@ -2,12 +2,13 @@ package io.methvin.better.files
 
 import better.files._
 import io.methvin.watcher.hashing.FileHasher
-import org.scalatest._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class RecursiveFileMonitorSpec extends WordSpec with Matchers {
+class RecursiveFileMonitorSpec extends AnyWordSpec with Matchers {
 
   "RecursiveFileMonitor" should {
     "watch single files" in {
@@ -21,7 +22,6 @@ class RecursiveFileMonitorSpec extends WordSpec with Matchers {
         log = msg :: log
       }
 
-      /***************************************************************************/
       val watcher = new RecursiveFileMonitor(file) {
         override def onCreate(file: File, count: Int) = output(s"$file got created $count time(s)")
         override def onModify(file: File, count: Int) = output(s"$file got modified $count time(s)")
@@ -33,7 +33,6 @@ class RecursiveFileMonitorSpec extends WordSpec with Matchers {
       }
       watcher.start()
 
-      /***************************************************************************/
       sleep()
       file.writeText("hello world"); sleep()
       file.clear(); sleep()
@@ -59,7 +58,6 @@ class RecursiveFileMonitorSpec extends WordSpec with Matchers {
         log = msg :: log
       }
 
-      /***************************************************************************/
       val watcher = new RecursiveFileMonitor(directory) {
         override def onCreate(file: File, count: Int) = output(s"$file got created $count time(s)")
         override def onModify(file: File, count: Int) = output(s"$file got modified $count time(s)")
@@ -71,7 +69,6 @@ class RecursiveFileMonitorSpec extends WordSpec with Matchers {
       }
       watcher.start()
 
-      /***************************************************************************/
       sleep()
       val f1 = (directory / "f1.txt").createIfNotExists()
       f1.writeText("hello world"); sleep()
