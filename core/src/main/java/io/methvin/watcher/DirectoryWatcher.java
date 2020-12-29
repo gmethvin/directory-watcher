@@ -207,10 +207,7 @@ public class DirectoryWatcher {
    * is closed.
    */
   public void watch() {
-    for (; ; ) {
-      if (!listener.isWatching()) {
-        return;
-      }
+    while (listener.isWatching()) {
       // wait for key to be signalled
       WatchKey key;
       try {
@@ -317,6 +314,7 @@ public class DirectoryWatcher {
 
   private void onEvent(EventType eventType, Path childPath, int count, Path rootPath)
       throws IOException {
+    logger.debug("-> {} [{}]", eventType, childPath);
     listener.onEvent(new DirectoryChangeEvent(eventType, childPath, count, rootPath));
   }
 
@@ -379,19 +377,16 @@ public class DirectoryWatcher {
           logger.debug("Failed to hash created file [{}]. It may have been deleted.", path);
         } else {
           logger.debug("Failed to hash created file [{}]. It may be locked.", path);
-          logger.debug("{} [{}]", EventType.CREATE, path);
           onEvent(EventType.CREATE, path, count, context);
         }
       } else {
         // Notify for the file create if not already notified
         if (!pathHashes.containsKey(path)) {
-          logger.debug("{} [{}]", EventType.CREATE, path);
           onEvent(EventType.CREATE, path, count, context);
           pathHashes.put(path, newHash);
         }
       }
     } else {
-      logger.debug("{} [{}]", EventType.CREATE, path);
       onEvent(EventType.CREATE, path, count, context);
     }
   }

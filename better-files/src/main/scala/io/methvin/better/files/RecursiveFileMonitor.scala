@@ -38,8 +38,8 @@ import scala.concurrent.ExecutionContext
 abstract class RecursiveFileMonitor(
   val root: File,
   val fileHasher: Option[FileHasher] = Some(FileHasher.DEFAULT_FILE_HASHER),
-  val logger: Logger = NOPLogger.NOP_LOGGER
-) extends File.Monitor {
+  val logger: Logger = NOPLogger.NOP_LOGGER)
+    extends File.Monitor {
 
   protected[this] val pathToWatch: Option[Path] =
     if (root.exists) Some(if (root.isDirectory) root.path else root.parent.path) else None
@@ -64,8 +64,7 @@ abstract class RecursiveFileMonitor(
               RecursiveFileMonitor.this.onEvent(
                 et.getWatchEventKind.asInstanceOf[WatchEvent.Kind[Path]],
                 File(event.path),
-                event.count
-              )
+                event.count)
           }
         }
       }

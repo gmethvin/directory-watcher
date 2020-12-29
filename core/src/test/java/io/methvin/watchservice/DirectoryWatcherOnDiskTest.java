@@ -198,6 +198,9 @@ public class DirectoryWatcherOnDiskTest {
     final CompletableFuture<Void> future = this.watcher.watchAsync();
     final Path parent = Files.createTempDirectory("parent-");
     final Path child = Files.createTempFile(parent, "child-", ".dat");
+
+    ensureStill();
+
     try {
 
       FileUtils.moveToDirectory(parent.toFile(), this.tmpDir.toFile(), false);
@@ -259,6 +262,9 @@ public class DirectoryWatcherOnDiskTest {
     final Path parent = Files.createTempDirectory(this.tmpDir, "parent-");
     final Path child = Files.createTempFile(parent, "child-", ".dat");
     final Path newParent = Files.createTempDirectory(this.tmpDir, "new-");
+
+    ensureStill();
+
     try {
 
       FileUtils.moveToDirectory(parent.toFile(), newParent.toFile(), false);
