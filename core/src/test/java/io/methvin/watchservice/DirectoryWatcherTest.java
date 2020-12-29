@@ -25,16 +25,25 @@ import static org.junit.Assert.*;
 
 public class DirectoryWatcherTest {
 
+  private boolean isWin() {
+    return System.getProperty("os.name").toLowerCase().contains("win");
+  }
+
+  private boolean isMac() {
+    return System.getProperty("os.name").toLowerCase().contains("mac");
+  }
+
   @Test
   public void validateOsxWatchKeyOverflow() throws Exception {
-    Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
+    Assume.assumeTrue(isMac());
 
     File directory = new File(new File("").getAbsolutePath(), "target/directory");
     FileUtils.deleteDirectory(directory);
     directory.mkdirs();
     MacOSXListeningWatchService service = new MacOSXListeningWatchService();
     MacOSXWatchKey key =
-        new MacOSXWatchKey(service, ImmutableList.of(ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY), 16);
+        new MacOSXWatchKey(
+            service, null, ImmutableList.of(ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY), 16);
     int totalEvents = 0;
     for (int i = 0; i < 10; i++) {
       Path toSignal = Paths.get(directory.toPath().toAbsolutePath().toString() + "/" + i);
@@ -59,7 +68,7 @@ public class DirectoryWatcherTest {
 
   @Test
   public void validateOsxDirectoryWatcher() throws Exception {
-    Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
+    Assume.assumeTrue(isMac());
 
     File directory = new File(new File("").getAbsolutePath(), "target/directory");
     FileUtils.deleteDirectory(directory);
@@ -69,7 +78,7 @@ public class DirectoryWatcherTest {
 
   @Test
   public void validateOsxDirectoryWatcherRelativePath() throws Exception {
-    Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
+    Assume.assumeTrue(isMac());
 
     File directory = new File(new File("").getAbsolutePath(), "target/directory");
     FileUtils.deleteDirectory(directory);
@@ -79,7 +88,7 @@ public class DirectoryWatcherTest {
 
   @Test
   public void validateOsxDirectoryWatcherNoHashing() throws Exception {
-    Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
+    Assume.assumeTrue(isMac());
 
     File directory = new File(new File("").getAbsolutePath(), "target/directory");
     FileUtils.deleteDirectory(directory);
@@ -98,7 +107,7 @@ public class DirectoryWatcherTest {
 
   @Test
   public void validateOsxDirectoryWatcherPreExistingSubdir() throws Exception {
-    Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("mac"));
+    Assume.assumeTrue(isMac());
 
     File directory = new File(new File("").getAbsolutePath(), "target/directory");
     FileUtils.deleteDirectory(directory);
@@ -125,7 +134,7 @@ public class DirectoryWatcherTest {
   @Test
   public void validateJdkDirectoryWatcher() throws Exception {
     // The JDK watch service is basically unusable on mac since it polls every 10s
-    Assume.assumeFalse(System.getProperty("os.name").toLowerCase().contains("mac"));
+    Assume.assumeFalse(isMac());
 
     File directory = new File(new File("").getAbsolutePath(), "target/directory");
     FileUtils.deleteDirectory(directory);

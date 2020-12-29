@@ -17,7 +17,7 @@ import com.sun.jna.*;
 
 public interface CarbonAPI extends Library {
   // sbt uses JNA 4.5.0, so use JNA 4.x's API
-  CarbonAPI INSTANCE = Native.loadLibrary("Carbon", CarbonAPI.class);
+  CarbonAPI INSTANCE = (CarbonAPI) Native.loadLibrary("Carbon", CarbonAPI.class);
 
   CFArrayRef CFArrayCreate(
       CFAllocatorRef allocator, // always set to Pointer.NULL

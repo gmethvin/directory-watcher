@@ -47,11 +47,13 @@ public final class DirectoryChangeEvent {
   private final EventType eventType;
   private final Path path;
   private final int count;
+  private final Path rootPath;
 
-  public DirectoryChangeEvent(EventType eventType, Path path, int count) {
+  public DirectoryChangeEvent(EventType eventType, Path path, int count, Path rootPath) {
     this.eventType = eventType;
     this.path = path;
     this.count = count;
+    this.rootPath = rootPath;
   }
 
   public EventType eventType() {
@@ -66,17 +68,30 @@ public final class DirectoryChangeEvent {
     return count;
   }
 
+  public Path rootPath() {
+    return rootPath;
+  }
+
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
     DirectoryChangeEvent that = (DirectoryChangeEvent) o;
-    return count == that.count && eventType == that.eventType && Objects.equals(path, that.path);
+
+    return count == that.count
+        && eventType == that.eventType
+        && Objects.equals(path, that.path)
+        && Objects.equals(rootPath, that.rootPath);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(eventType, path, count);
+    return Objects.hash(eventType, path, count, rootPath);
   }
 
   @Override
@@ -88,6 +103,8 @@ public final class DirectoryChangeEvent {
         + path
         + ", count="
         + count
+        + ", rootPath="
+        + rootPath
         + '}';
   }
 }

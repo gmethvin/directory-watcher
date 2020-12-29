@@ -23,8 +23,10 @@ import io.methvin.watchservice.jna.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.WatchEvent;
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static java.nio.file.StandardWatchEventKinds.*;
@@ -114,21 +116,22 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
   private final int kFSEventStreamCreateFlagFileEvents = 0x00000010;
 
   @Override
-  public AbstractWatchKey register(
+  public synchronized AbstractWatchKey register(
       WatchablePath watchable, Iterable<? extends WatchEvent.Kind<?>> events) throws IOException {
     checkOpen();
-    final MacOSXWatchKey watchKey = new MacOSXWatchKey(this, events, queueSize);
+    final MacOSXWatchKey watchKey = new MacOSXWatchKey(this, watchable, events, queueSize);
     final Path file = watchable.getFile().toAbsolutePath();
     // if we are already watching a parent of this directory, do nothing.
     for (Path watchedPath : pathsWatching) {
       if (file.startsWith(watchedPath)) return watchKey;
     }
+
     final Map<Path, HashCode> hashCodeMap = PathUtils.createHashCodeMap(file, fileHasher);
     final Pointer[] values = {CFStringRef.toCFString(file.toString()).getPointer()};
     final CFArrayRef pathsToWatch =
         CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);
-    final CarbonAPI.FSEventStreamCallback callback =
-        new MacOSXListeningCallback(watchKey, fileHasher, hashCodeMap);
+    final MacOSXListeningCallback callback =
+        new MacOSXListeningCallback(watchKey, fileHasher, hashCodeMap, file);
     callbackList.add(callback);
     int flags = kFSEventStreamCreateFlagNoDefer;
     if (fileLevelEvents) {
@@ -145,6 +148,11 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
             flags);
 
     final CFRunLoopThread thread = new CFRunLoopThread(streamRef, file.toFile());
+    callback.onClose(
+        () -> {
+          close(thread, callback, file);
+        });
+
     thread.setDaemon(true);
     thread.start();
     threadList.add(thread);
@@ -189,7 +197,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
   }
 
   @Override
-  public void close() {
+  public synchronized void close() {
     super.close();
     threadList.forEach(CFRunLoopThread::close);
     threadList.clear();
@@ -197,16 +205,40 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     pathsWatching.clear();
   }
 
+  public synchronized void close(
+      CFRunLoopThread runLoopThread, CarbonAPI.FSEventStreamCallback callback, Path path) {
+    threadList.remove(runLoopThread);
+    callbackList.remove(callback);
+    pathsWatching.remove(path);
+    runLoopThread.close();
+  }
+
   private static class MacOSXListeningCallback implements CarbonAPI.FSEventStreamCallback {
     private final MacOSXWatchKey watchKey;
     private final Map<Path, HashCode> hashCodeMap;
     private final FileHasher fileHasher;
+    private final Path realPath;
+    private final Path absPath;
+    private final int realPathSize;
+
+    private Runnable onCloseCallback;
 
     private MacOSXListeningCallback(
-        MacOSXWatchKey watchKey, FileHasher fileHasher, Map<Path, HashCode> hashCodeMap) {
+        MacOSXWatchKey watchKey,
+        FileHasher fileHasher,
+        Map<Path, HashCode> hashCodeMap,
+        Path absPath)
+        throws IOException {
       this.watchKey = watchKey;
       this.hashCodeMap = hashCodeMap;
       this.fileHasher = fileHasher;
+      this.realPath = absPath.toRealPath();
+      this.absPath = absPath;
+      this.realPathSize = realPath.toString().length() + 1;
+    }
+
+    public void onClose(Runnable callback) {
+      this.onCloseCallback = callback;
     }
 
     @Override
@@ -222,13 +254,20 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       for (String fileName : eventPaths.getStringArray(0, length)) {
         /*
          * Note: If file-level events are enabled, fileName will be an individual file so we usually won't recurse.
+         *       It is necessary to normalise the filename back to what is used in the key roots.
+         *       Because the watcher returns real paths, but relative paths may have be used in the key roots;
          */
-        Path path = new File(fileName).toPath();
+
+        // only substring, if there are child paths, else just return absPath
+        Path path =
+            fileName.length() + 1 != realPathSize
+                ? absPath.resolve(fileName.substring(realPathSize))
+                : absPath;
         final Set<Path> filesOnDisk;
         try {
           filesOnDisk = PathUtils.recursiveListFiles(path);
         } catch (IOException e) {
-          throw new IllegalStateException("Could not recursively list files for " + fileName, e);
+          throw new IllegalStateException("Could not recursively list files for " + path, e);
         }
         /*
          * We collect and process all actions for each category of created, modified and deleted as it appears a first thread
@@ -254,9 +293,27 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
           }
         }
 
-        for (Path file : findDeletedFiles(fileName, filesOnDisk)) {
+        List<Path> deletedPaths = findDeletedFiles(path, filesOnDisk);
+
+        if (hashCodeMap.isEmpty()) {
+          // all underlying paths are gone, cancel the key.
+          // This must happen before this event, so that DirectoryWatch also cleans up
+          watchKey.cancel();
+        }
+
+        for (Path file : deletedPaths) {
           if (watchKey.isReportDeleteEvents()) {
             watchKey.signalEvent(ENTRY_DELETE, file);
+          }
+        }
+
+        if (hashCodeMap.isEmpty()) {
+          // all underlying paths are gone, so stop this service
+          // These is separated here to go after, in case it throws an exception.
+          try {
+            onCloseCallback.run();
+          } catch (Exception e) {
+            throw new RuntimeException(e);
           }
         }
       }
@@ -289,10 +346,11 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       return createdFileList;
     }
 
-    private List<Path> findDeletedFiles(String name, Set<Path> filesOnDisk) {
+    private List<Path> findDeletedFiles(Path path, Set<Path> filesOnDisk) {
       List<Path> deletedFileList = new ArrayList<Path>();
       for (Path file : hashCodeMap.keySet()) {
-        if (file.toFile().getAbsolutePath().startsWith(name) && !filesOnDisk.contains(file)) {
+        if (file.toFile().getAbsolutePath().startsWith(path.toString())
+            && !filesOnDisk.contains(file)) {
           deletedFileList.add(file);
           hashCodeMap.remove(file);
         }

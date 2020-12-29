@@ -19,16 +19,16 @@ import java.nio.file.Watchable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 class MacOSXWatchKey extends AbstractWatchKey {
-  private final AtomicBoolean cancelled = new AtomicBoolean(false);
   private final boolean reportCreateEvents;
   private final boolean reportModifyEvents;
   private final boolean reportDeleteEvents;
 
   public MacOSXWatchKey(
       AbstractWatchService macOSXWatchService,
+      WatchablePath watchable,
       Iterable<? extends WatchEvent.Kind<?>> events,
       int queueSize) {
-    super(macOSXWatchService, null, events, queueSize);
+    super(macOSXWatchService, watchable, events, queueSize);
     boolean reportCreateEvents = false;
     boolean reportModifyEvents = false;
     boolean reportDeleteEvents = false;
@@ -47,9 +47,8 @@ class MacOSXWatchKey extends AbstractWatchKey {
     this.reportModifyEvents = reportModifyEvents;
   }
 
-  @Override
-  public void cancel() {
-    cancelled.set(true);
+  MacOSXListeningWatchService watchService() {
+    return (MacOSXListeningWatchService) super.watchService();
   }
 
   public boolean isReportCreateEvents() {
@@ -62,10 +61,5 @@ class MacOSXWatchKey extends AbstractWatchKey {
 
   public boolean isReportDeleteEvents() {
     return reportDeleteEvents;
-  }
-
-  @Override
-  public Watchable watchable() {
-    return null;
   }
 }
