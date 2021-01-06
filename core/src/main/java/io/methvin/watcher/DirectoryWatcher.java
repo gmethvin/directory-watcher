@@ -30,6 +30,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
@@ -150,7 +152,7 @@ public class DirectoryWatcher {
   private final Map<Path, Path> registeredPathToRootPath;
   private final boolean isMac;
   private final DirectoryChangeListener listener;
-  private final Map<Path, HashCode> pathHashes;
+  private final SortedMap<Path, HashCode> pathHashes;
   private final Map<WatchKey, Path> keyRoots;
 
   // this is set to true/false depending on whether recursive watching is supported natively
@@ -255,7 +257,9 @@ public class DirectoryWatcher {
             }
             notifyCreateEvent(childPath, count, rootPath);
           } else if (kind == ENTRY_MODIFY) {
-            if (fileHasher != null || Files.isDirectory(childPath)) {
+            if (fileHasher == null) {
+              onEvent(EventType.MODIFY, childPath, count, rootPath);
+            } else {
               /*
                * Note that existingHash may be null due to the file being created before we start listening
                * It's important we don't discard the event in this case
@@ -275,14 +279,24 @@ public class DirectoryWatcher {
                 logger.debug(
                     "Failed to hash modified file [{}]. It may have been deleted.", childPath);
               }
-            } else {
-              onEvent(EventType.MODIFY, childPath, count, rootPath);
             }
           } else if (kind == ENTRY_DELETE) {
-            // we cannot tell if the deletion was on file or folder because path points nowhere
-            // (file/folder was deleted)
-            pathHashes.entrySet().removeIf(e -> e.getKey().startsWith(childPath));
-            onEvent(EventType.DELETE, childPath, count, rootPath);
+            // we cannot tell if this was a file or folder, but we can look at subpaths
+            if (fileHasher == null) {
+              // hashing is disabled, so just notify on the path we got the event for
+              onEvent(EventType.DELETE, childPath, count, rootPath);
+            } else {
+              // hashing is enabled, so we may know other paths that need to be deleted
+              Set<Path> subtreePaths =
+                  pathHashes
+                      .subMap(childPath, Paths.get(childPath.toString(), "" + Character.MAX_VALUE))
+                      .keySet();
+              for (Path path : subtreePaths) {
+                onEvent(EventType.DELETE, path, count, rootPath);
+              }
+              // this will remove from the original map
+              subtreePaths.clear();
+            }
           }
         } catch (Exception e) {
           logger.debug("DirectoryWatcher got an exception while watching!", e);
@@ -368,7 +382,9 @@ public class DirectoryWatcher {
   }
 
   private void notifyCreateEvent(Path path, int count, Path context) throws IOException {
-    if (fileHasher != null || Files.isDirectory(path)) {
+    if (fileHasher == null) {
+      onEvent(EventType.CREATE, path, count, context);
+    } else {
       HashCode newHash = PathUtils.hash(fileHasher, path);
       if (newHash == null) {
         // Hashing could fail for locked files on Windows
@@ -386,8 +402,6 @@ public class DirectoryWatcher {
           pathHashes.put(path, newHash);
         }
       }
-    } else {
-      onEvent(EventType.CREATE, path, count, context);
     }
   }
 }

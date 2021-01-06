@@ -267,7 +267,7 @@ public class DirectoryWatcherTest {
       }
       if (!fileHashing
           && event.eventType() == DirectoryChangeEvent.EventType.MODIFY
-          && System.currentTimeMillis() - createTimes.getOrDefault(event.path(), 0L) < 10) {
+          && System.currentTimeMillis() - createTimes.getOrDefault(event.path(), 0L) < 100) {
         /* ignore this event since it's a create paired with a modify, which we allow when file hashing is disabled */
         return;
       }

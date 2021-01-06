@@ -445,17 +445,17 @@ public class DirectoryWatcherOnDiskTest {
     this.recorder.events.clear();
 
     FileUtils.deleteDirectory(paths1.get(2).toFile());
-    await().atMost(3, TimeUnit.HOURS).until(() -> recorder.events.size() == 4);
+    await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 4);
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
 
     FileUtils.deleteDirectory(paths2.get(2).toFile());
-    await().atMost(3, TimeUnit.HOURS).until(() -> recorder.events.size() == 4);
+    await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 4);
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
 
     FileUtils.deleteDirectory(paths3.get(2).toFile());
-    await().atMost(3, TimeUnit.HOURS).until(() -> recorder.events.size() == 4);
+    await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 4);
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
 
