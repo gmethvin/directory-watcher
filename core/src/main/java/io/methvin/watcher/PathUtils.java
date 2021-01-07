@@ -21,6 +21,7 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 public class PathUtils {
 
@@ -48,9 +49,9 @@ public class PathUtils {
     return createHashCodeMap(Collections.singletonList(file), fileHasher);
   }
 
-  public static Map<Path, HashCode> createHashCodeMap(List<Path> files, FileHasher fileHasher)
+  public static SortedMap<Path, HashCode> createHashCodeMap(List<Path> files, FileHasher fileHasher)
       throws IOException {
-    Map<Path, HashCode> lastModifiedMap = new ConcurrentHashMap<>();
+    SortedMap<Path, HashCode> lastModifiedMap = new ConcurrentSkipListMap<>();
     if (fileHasher != null) {
       for (Path file : files) {
         for (Path child : recursiveListFiles(file)) {
