@@ -287,10 +287,7 @@ public class DirectoryWatcher {
               onEvent(EventType.DELETE, childPath, count, rootPath);
             } else {
               // hashing is enabled, so we may know other paths that need to be deleted
-              Set<Path> subtreePaths =
-                  pathHashes
-                      .subMap(childPath, Paths.get(childPath.toString(), "" + Character.MAX_VALUE))
-                      .keySet();
+              Set<Path> subtreePaths = PathUtils.subMap(pathHashes, childPath).keySet();
               for (Path path : subtreePaths) {
                 onEvent(EventType.DELETE, path, count, rootPath);
               }
