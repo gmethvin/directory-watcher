@@ -26,6 +26,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.methvin.watcher.hashing.HasHash;
+import io.methvin.watcher.hashing.HashCode;
+
+import static java.util.Objects.hash;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -112,20 +116,24 @@ abstract class AbstractWatchService implements WatchService {
   }
 
   /** A basic implementation of {@link WatchEvent}. */
-  static final class Event<T> implements WatchEvent<T> {
+  static final class Event<T> implements WatchEvent<T>,
+                                         HasHash {
 
     private final Kind<T> kind;
     private final int count;
 
     private final T context;
 
-    public Event(Kind<T> kind, int count, T context) {
+    private final HashCode pathHash;
+
+    Event(Kind<T> kind, int count, T context, HashCode pathHash) {
       this.kind = requireNonNull(kind);
       if (count < 0) {
         throw new IllegalArgumentException(String.format("count (%s) must be non-negative", count));
       }
       this.count = count;
       this.context = context;
+      this.pathHash = pathHash;
     }
 
     @Override
@@ -143,20 +151,26 @@ abstract class AbstractWatchService implements WatchService {
       return context;
     }
 
+    public HashCode pathHash() {
+      return pathHash;
+    }
+
+
     @Override
     public boolean equals(Object obj) {
       if (obj instanceof Event) {
         Event<?> other = (Event<?>) obj;
         return kind().equals(other.kind())
             && count() == other.count()
-            && Objects.equals(context(), other.context());
+            && Objects.equals(context(), other.context())
+            && Objects.equals(pathHash(), other.pathHash());
       }
       return false;
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(kind(), count(), context());
+      return Objects.hash(kind(), count(), context(), pathHash());
     }
 
     @Override
@@ -165,6 +179,7 @@ abstract class AbstractWatchService implements WatchService {
           .add("kind=" + kind())
           .add("count=" + count())
           .add("context=" + context())
+          .add("pathHash=" + pathHash())
           .toString();
     }
   }

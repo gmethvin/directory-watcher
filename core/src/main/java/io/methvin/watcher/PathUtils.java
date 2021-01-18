@@ -45,12 +45,12 @@ public class PathUtils {
   }
 
   public static Map<Path, HashCode> createHashCodeMap(Path file, FileHasher fileHasher)
-      throws IOException {
+          throws IOException {
     return createHashCodeMap(Collections.singletonList(file), fileHasher);
   }
 
   public static SortedMap<Path, HashCode> createHashCodeMap(List<Path> files, FileHasher fileHasher)
-      throws IOException {
+          throws IOException {
     SortedMap<Path, HashCode> lastModifiedMap = new ConcurrentSkipListMap<>();
     if (fileHasher != null) {
       for (Path file : files) {
@@ -83,24 +83,24 @@ public class PathUtils {
   }
 
   public static void recursiveVisitFiles(Path file, PathCallback onDirectory, PathCallback onFile)
-      throws IOException {
+          throws IOException {
     Files.walkFileTree(
-        file,
-        new SimpleFileVisitor<Path>() {
-          @Override
-          public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-              throws IOException {
-            onDirectory.call(dir);
-            return FileVisitResult.CONTINUE;
-          }
+            file,
+            new SimpleFileVisitor<Path>() {
+              @Override
+              public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+                      throws IOException {
+                onDirectory.call(dir);
+                return FileVisitResult.CONTINUE;
+              }
 
-          @Override
-          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-              throws IOException {
-            onFile.call(file);
-            return FileVisitResult.CONTINUE;
-          }
-        });
+              @Override
+              public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+                      throws IOException {
+                onFile.call(file);
+                return FileVisitResult.CONTINUE;
+              }
+            });
   }
 
   @SuppressWarnings("unchecked")

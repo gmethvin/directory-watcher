@@ -7,6 +7,7 @@ import io.methvin.watcher.DirectoryChangeEvent;
 import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
 import io.methvin.watcher.hashing.FileHasher;
+import io.methvin.watcher.hashing.HashCode;
 import io.methvin.watchservice.FileSystem.FileSystemAction;
 import org.codehaus.plexus.util.FileUtils;
 import org.junit.Assume;
@@ -45,11 +46,13 @@ public class DirectoryWatcherTest {
         new MacOSXWatchKey(
             service, null, ImmutableList.of(ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY), 16);
     int totalEvents = 0;
+    FileHasher hasher = FileHasher.DEFAULT_FILE_HASHER;
     for (int i = 0; i < 10; i++) {
       Path toSignal = Paths.get(directory.toPath().toAbsolutePath().toString() + "/" + i);
-      key.signalEvent(ENTRY_CREATE, toSignal);
-      key.signalEvent(ENTRY_MODIFY, toSignal);
-      key.signalEvent(ENTRY_DELETE, toSignal);
+      HashCode hashCode = hasher.hash(toSignal);
+      key.signalEvent(ENTRY_CREATE, toSignal, hashCode);
+      key.signalEvent(ENTRY_MODIFY, toSignal, hashCode);
+      key.signalEvent(ENTRY_DELETE, toSignal, hashCode);
       totalEvents += 3;
     }
     int overflowCount = 0;

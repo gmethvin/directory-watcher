@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import io.methvin.watcher.hashing.HashCode;
 import io.methvin.watchservice.AbstractWatchService.Event;
 
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
@@ -38,7 +39,7 @@ import static java.util.Objects.requireNonNull;
 class AbstractWatchKey implements WatchKey {
 
   private static WatchEvent<Object> overflowEvent(int count) {
-    return new Event<>(OVERFLOW, count, null);
+    return new Event<>(OVERFLOW, count, null, null);
   }
 
   private final AbstractWatchService watcher;
@@ -149,8 +150,8 @@ class AbstractWatchKey implements WatchKey {
   }
 
   // WatchEvent not WatchEvent.Kind
-  final void signalEvent(WatchEvent.Kind<Path> kind, Path context) {
-    post(new Event<>(kind, 1, context));
+  final void signalEvent(WatchEvent.Kind<Path> kind, Path context, HashCode hashCode) {
+    post(new Event<>(kind, 1, context, hashCode));
     signal();
   }
 

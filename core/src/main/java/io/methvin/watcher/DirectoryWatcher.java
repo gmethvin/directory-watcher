@@ -17,6 +17,7 @@ package io.methvin.watcher;
 import com.sun.nio.file.ExtendedWatchEventModifier;
 import io.methvin.watcher.DirectoryChangeEvent.EventType;
 import io.methvin.watcher.hashing.FileHasher;
+import io.methvin.watcher.hashing.HasHash;
 import io.methvin.watcher.hashing.HashCode;
 import io.methvin.watchservice.MacOSXListeningWatchService;
 import io.methvin.watchservice.WatchablePath;
@@ -33,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 
@@ -40,6 +42,76 @@ import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 import static java.nio.file.StandardWatchEventKinds.*;
 
 public class DirectoryWatcher {
+
+  public interface HashStore {
+    HashCode getHash(Path path) throws IOException;
+    void process(WatchEvent<?> event);
+
+    SortedMap<Path, HashCode> createPathHashes(List<Path> paths) throws IOException;
+  }
+
+  public static class LocalHashStore implements HashStore{
+    private final FileHasher fileHasher;
+
+    public LocalHashStore(FileHasher fileHasher) {
+      this.fileHasher = fileHasher;
+    }
+
+    @Override public SortedMap<Path, HashCode> createPathHashes(List<Path> paths) throws IOException {
+      return PathUtils.createHashCodeMap(paths, fileHasher);
+    }
+
+    @Override
+    public HashCode getHash(Path path) throws IOException  {
+      return fileHasher.hash(path);
+    }
+
+    @Override
+    public void process(WatchEvent<?> event) {
+      // Do nothing
+    }
+  }
+
+  public static class OSXHashStore implements HashStore{
+    private Map<Path, HashCode> hashes = new HashMap<>();
+    private final FileHasher fileHasher;
+
+    public OSXHashStore(FileHasher fileHasher) {
+      this.fileHasher = fileHasher;
+    }
+
+    @Override
+    public SortedMap<Path, HashCode> createPathHashes(List<Path> paths) throws IOException {
+      SortedMap<Path, HashCode> map = new ConcurrentSkipListMap<>(hashes);
+      return map;
+    }
+
+    public Map<Path, HashCode> createPathHashes(Path path) throws IOException {
+      Map<Path, HashCode> map = PathUtils.createHashCodeMap(path, fileHasher);
+      hashes.putAll(map);
+      return map;
+    }
+
+    @Override
+    public HashCode getHash(Path path) throws IOException  {
+      return hashes.get(path);
+    }
+
+    @Override
+    public void process(WatchEvent<?> event) {
+      Path path = (Path) event.context();
+
+      WatchEvent.Kind kind = event.kind();
+      if (kind == ENTRY_MODIFY || kind == ENTRY_CREATE) {
+        hashes.put(path, ((HasHash)event).pathHash());
+      } else if (kind == ENTRY_DELETE) {
+        hashes.remove(path);
+      } else if (kind == OVERFLOW) {
+        // Do cannot process this
+      }
+    }
+  }
+
 
   /**
    * A builder for a {@link DirectoryWatcher}. Use {@code DirectoryWatcher.builder()} to get a new
@@ -50,6 +122,7 @@ public class DirectoryWatcher {
     private DirectoryChangeListener listener = (event -> {});
     private Logger logger = null;
     private FileHasher fileHasher = FileHasher.DEFAULT_FILE_HASHER;
+    private HashStore hashStore;
     private WatchService watchService = null;
 
     private Builder() {}
@@ -118,21 +191,31 @@ public class DirectoryWatcher {
       if (logger == null) {
         staticLogger();
       }
-      return new DirectoryWatcher(paths, listener, watchService, fileHasher, logger);
+      return new DirectoryWatcher(paths, listener, watchService, logger, hashStore);
     }
 
     private Builder osDefaultWatchService() throws IOException {
       boolean isMac = System.getProperty("os.name").toLowerCase().contains("mac");
       if (isMac) {
+        if (fileHasher != null) {
+          hashStore = new OSXHashStore(fileHasher);
+        }
+
         return watchService(
-            new MacOSXListeningWatchService(
-                new MacOSXListeningWatchService.Config() {
-                  @Override
-                  public FileHasher fileHasher() {
-                    return fileHasher;
-                  }
-                }));
+                new MacOSXListeningWatchService(
+                        new MacOSXListeningWatchService.Config() {
+                          @Override
+                          public FileHasher fileHasher() {
+                            return fileHasher;
+                          }
+
+                          @Override
+                          public OSXHashStore hashStore() {
+                            return (OSXHashStore) hashStore;
+                          }
+                        }));
       } else {
+        hashStore = new LocalHashStore(fileHasher);
         return watchService(FileSystems.getDefault().newWatchService());
       }
     }
@@ -152,30 +235,32 @@ public class DirectoryWatcher {
   private final Map<Path, Path> registeredPathToRootPath;
   private final boolean isMac;
   private final DirectoryChangeListener listener;
-  private final SortedMap<Path, HashCode> pathHashes;
+  private final HashStore hashStore;
   private final Map<WatchKey, Path> keyRoots;
+  private SortedMap<Path, HashCode> pathHashes; // not final as assigned during watch()
+  private final List<Path> paths;
 
   // this is set to true/false depending on whether recursive watching is supported natively
   private Boolean fileTreeSupported = null;
-  private FileHasher fileHasher;
 
   private volatile boolean closed;
 
   public DirectoryWatcher(
-      List<Path> paths,
-      DirectoryChangeListener listener,
-      WatchService watchService,
-      FileHasher fileHasher,
-      Logger logger)
-      throws IOException {
+          List<Path> paths,
+          DirectoryChangeListener listener,
+          WatchService watchService,
+          Logger logger,
+          HashStore hashStore)
+          throws IOException {
+    this.paths = paths;
     this.closed = false;
     this.registeredPathToRootPath = new HashMap<>();
     this.listener = listener;
     this.watchService = watchService;
     this.isMac = watchService instanceof MacOSXListeningWatchService;
-    this.pathHashes = PathUtils.createHashCodeMap(paths, fileHasher);
+    this.hashStore = hashStore;
+
     this.keyRoots = PathUtils.createKeyRootsMap();
-    this.fileHasher = fileHasher;
     this.logger = logger;
 
     for (Path path : paths) {
@@ -197,11 +282,11 @@ public class DirectoryWatcher {
    */
   public CompletableFuture<Void> watchAsync(Executor executor) {
     return CompletableFuture.supplyAsync(
-        () -> {
-          watch();
-          return null;
-        },
-        executor);
+            () -> {
+              watch();
+              return null;
+            },
+            executor);
   }
 
   /**
@@ -209,6 +294,12 @@ public class DirectoryWatcher {
    * is closed.
    */
   public void watch() {
+    try {
+      pathHashes = hashStore.createPathHashes(paths);
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to hash paths ", e);
+    }
+
     while (listener.isWatching()) {
       // wait for key to be signalled
       WatchKey key;
@@ -219,6 +310,7 @@ public class DirectoryWatcher {
       }
       for (WatchEvent<?> event : key.pollEvents()) {
         try {
+          hashStore.process(event);
           WatchEvent.Kind<?> kind = event.kind();
           // Context for directory entry event is the file name of entry
           WatchEvent<Path> ev = PathUtils.cast(event);
@@ -226,7 +318,7 @@ public class DirectoryWatcher {
           Path eventPath = ev.context();
           if (!keyRoots.containsKey(key)) {
             throw new IllegalStateException(
-                "WatchService returned key [" + key + "] but it was not found in keyRoots!");
+                    "WatchService returned key [" + key + "] but it was not found in keyRoots!");
           }
           Path registeredPath = keyRoots.get(key);
           Path rootPath = registeredPathToRootPath.get(registeredPath);
@@ -250,14 +342,14 @@ public class DirectoryWatcher {
                */
               if (!isMac) {
                 PathUtils.recursiveVisitFiles(
-                    childPath,
-                    dir -> notifyCreateEvent(dir, count, rootPath),
-                    file -> notifyCreateEvent(file, count, rootPath));
+                        childPath,
+                        dir -> notifyCreateEvent(dir, count, rootPath),
+                        file -> notifyCreateEvent(file, count, rootPath));
               }
             }
             notifyCreateEvent(childPath, count, rootPath);
           } else if (kind == ENTRY_MODIFY) {
-            if (fileHasher == null) {
+            if (hashStore == null) {
               onEvent(EventType.MODIFY, childPath, count, rootPath);
             } else {
               /*
@@ -270,27 +362,27 @@ public class DirectoryWatcher {
                * newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession.
                * In this case the MODIFY event can be safely ignored
                */
-              HashCode newHash = PathUtils.hash(fileHasher, childPath);
+              HashCode newHash = hashStore.getHash(childPath); //PathUtils.hash(fileHasher, childPath);
 
               if (newHash != null && !newHash.equals(existingHash)) {
                 pathHashes.put(childPath, newHash);
                 onEvent(EventType.MODIFY, childPath, count, rootPath);
               } else if (newHash == null) {
                 logger.debug(
-                    "Failed to hash modified file [{}]. It may have been deleted.", childPath);
+                        "Failed to hash modified file [{}]. It may have been deleted.", childPath);
               }
             }
           } else if (kind == ENTRY_DELETE) {
             // we cannot tell if this was a file or folder, but we can look at subpaths
-            if (fileHasher == null) {
+            if (hashStore == null) {
               // hashing is disabled, so just notify on the path we got the event for
               onEvent(EventType.DELETE, childPath, count, rootPath);
             } else {
               // hashing is enabled, so we may know other paths that need to be deleted
               Set<Path> subtreePaths =
-                  pathHashes
-                      .subMap(childPath, Paths.get(childPath.toString(), "" + Character.MAX_VALUE))
-                      .keySet();
+                      pathHashes
+                              .subMap(childPath, Paths.get(childPath.toString(), "" + Character.MAX_VALUE))
+                              .keySet();
               for (Path path : subtreePaths) {
                 onEvent(EventType.DELETE, path, count, rootPath);
               }
@@ -327,7 +419,7 @@ public class DirectoryWatcher {
   }
 
   private void onEvent(EventType eventType, Path childPath, int count, Path rootPath)
-      throws IOException {
+          throws IOException {
     logger.debug("-> {} [{}]", eventType, childPath);
     listener.onEvent(new DirectoryChangeEvent(eventType, childPath, count, rootPath));
   }
@@ -367,25 +459,25 @@ public class DirectoryWatcher {
 
   // Internal method to be used by registerAll
   private void register(Path directory, boolean useFileTreeModifier, Path context)
-      throws IOException {
+          throws IOException {
     logger.debug("Registering [{}].", directory);
     Watchable watchable = isMac ? new WatchablePath(directory) : directory;
     WatchEvent.Modifier[] modifiers =
-        useFileTreeModifier
+            useFileTreeModifier
             ? new WatchEvent.Modifier[] {ExtendedWatchEventModifier.FILE_TREE}
             : new WatchEvent.Modifier[] {};
     WatchEvent.Kind<?>[] kinds =
-        new WatchEvent.Kind<?>[] {ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY};
+            new WatchEvent.Kind<?>[] {ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY};
     WatchKey watchKey = watchable.register(watchService, kinds, modifiers);
     keyRoots.put(watchKey, directory);
     registeredPathToRootPath.put(directory, context);
   }
 
   private void notifyCreateEvent(Path path, int count, Path context) throws IOException {
-    if (fileHasher == null) {
+    if (hashStore == null) {
       onEvent(EventType.CREATE, path, count, context);
     } else {
-      HashCode newHash = PathUtils.hash(fileHasher, path);
+      HashCode newHash = hashStore.getHash(path);
       if (newHash == null) {
         // Hashing could fail for locked files on Windows
         // Skip notification only if we confirm the file does not exist

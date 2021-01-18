@@ -20,6 +20,7 @@ import java.util.Formatter;
 /** A class representing the hash code of a file. */
 public class HashCode {
   private final byte[] value;
+  private boolean isDirectory;
 
   public static HashCode fromBytes(byte[] value) {
     return new HashCode(Arrays.copyOf(value, value.length));
