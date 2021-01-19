@@ -1,28 +1,33 @@
-organization in ThisBuild := "io.methvin"
-licenses in ThisBuild := Seq(
-  "Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html")
-)
-homepage in ThisBuild := Some(url("https://github.com/gmethvin/directory-watcher"))
-scmInfo in ThisBuild := Some(
-  ScmInfo(
-    url("https://github.com/gmethvin/directory-watcher"),
-    "scm:git@github.com:gmethvin/directory-watcher.git"
+inThisBuild(
+  Seq(
+    organization := "io.methvin",
+    licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html")),
+    homepage := Some(url("https://github.com/gmethvin/directory-watcher")),
+    scmInfo := Some(
+      ScmInfo(
+        url("https://github.com/gmethvin/directory-watcher"),
+        "scm:git@github.com:gmethvin/directory-watcher.git"
+      )
+    ),
+    developers := List(
+      Developer(
+        "gmethvin",
+        "Greg Methvin",
+        "greg@methvin.net",
+        new URL("https://github.com/gmethvin")
+      )
+    ),
+    scalaVersion := "2.13.4",
+    scalafmtOnCompile := true
   )
 )
-developers in ThisBuild := List(
-  Developer("gmethvin", "Greg Methvin", "greg@methvin.net", new URL("https://github.com/gmethvin"))
-)
-
-scalaVersion in ThisBuild := "2.13.3"
-scalafmtOnCompile in ThisBuild := true
-
-publishMavenStyle in ThisBuild := true
-publishTo in ThisBuild := sonatypePublishToBundle.value
 
 def commonSettings =
   Seq(
-    fork in Test := true,
-    javacOptions in compile ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint"),
+    publishMavenStyle := true,
+    publishTo := sonatypePublishToBundle.value,
+    Test / fork := true,
+    compile / javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint"),
     scalacOptions += "-target:jvm-1.8",
     libraryDependencies ++= Seq(
       "com.novocode" % "junit-interface" % "0.11" % Test,

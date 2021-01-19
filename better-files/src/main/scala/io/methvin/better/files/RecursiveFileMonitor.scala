@@ -28,8 +28,7 @@ import org.slf4j.helpers.NOPLogger
 
 import scala.concurrent.ExecutionContext
 
-/**
-  * An implementation of the better-files `File.Monitor` interface using directory-watcher.
+/** An implementation of the better-files `File.Monitor` interface using directory-watcher.
   *
   * @param root the root directory to watch
   * @param fileHasher a hasher implementation used to hash files to prevent duplicate events. `None` to disable hashing.
@@ -38,8 +37,8 @@ import scala.concurrent.ExecutionContext
 abstract class RecursiveFileMonitor(
   val root: File,
   val fileHasher: Option[FileHasher] = Some(FileHasher.DEFAULT_FILE_HASHER),
-  val logger: Logger = NOPLogger.NOP_LOGGER)
-    extends File.Monitor {
+  val logger: Logger = NOPLogger.NOP_LOGGER
+) extends File.Monitor {
 
   protected[this] val pathToWatch: Option[Path] =
     if (root.exists) Some(if (root.isDirectory) root.path else root.parent.path) else None
@@ -64,7 +63,8 @@ abstract class RecursiveFileMonitor(
               RecursiveFileMonitor.this.onEvent(
                 et.getWatchEventKind.asInstanceOf[WatchEvent.Kind[Path]],
                 File(event.path),
-                event.count)
+                event.count
+              )
           }
         }
       }
