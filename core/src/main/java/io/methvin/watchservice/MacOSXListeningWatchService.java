@@ -126,7 +126,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       if (file.startsWith(watchedPath)) return watchKey;
     }
 
-    final Map<Path, HashCode> hashCodeMap = PathUtils.createHashCodeMap(file, fileHasher);
+    final SortedMap<Path, HashCode> hashCodeMap = PathUtils.createHashCodeMap(file, fileHasher);
     final Pointer[] values = {CFStringRef.toCFString(file.toString()).getPointer()};
     final CFArrayRef pathsToWatch =
         CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);
@@ -215,7 +215,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
 
   private static class MacOSXListeningCallback implements CarbonAPI.FSEventStreamCallback {
     private final MacOSXWatchKey watchKey;
-    private final Map<Path, HashCode> hashCodeMap;
+    private final SortedMap<Path, HashCode> hashCodeMap;
     private final FileHasher fileHasher;
     private final Path realPath;
     private final Path absPath;
@@ -226,7 +226,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     private MacOSXListeningCallback(
         MacOSXWatchKey watchKey,
         FileHasher fileHasher,
-        Map<Path, HashCode> hashCodeMap,
+        SortedMap<Path, HashCode> hashCodeMap,
         Path absPath)
         throws IOException {
       this.watchKey = watchKey;
@@ -324,7 +324,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       for (Path file : filesOnDisk) {
         HashCode storedHashCode = hashCodeMap.get(file);
         HashCode newHashCode = PathUtils.hash(fileHasher, file);
-        if (storedHashCode != null && !storedHashCode.equals(newHashCode) && newHashCode != null) {
+        if (newHashCode != null && !newHashCode.equals(storedHashCode)) {
           modifiedFileList.add(file);
           hashCodeMap.put(file, newHashCode);
         }
@@ -348,11 +348,11 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
 
     private List<Path> findDeletedFiles(Path path, Set<Path> filesOnDisk) {
       List<Path> deletedFileList = new ArrayList<Path>();
-      for (Path file : hashCodeMap.keySet()) {
-        if (file.toFile().getAbsolutePath().startsWith(path.toString())
-            && !filesOnDisk.contains(file)) {
+      Set<Path> subtreePaths = PathUtils.subMap(hashCodeMap, path).keySet();
+      for (Path file : subtreePaths) {
+        if (file.startsWith(path) && !filesOnDisk.contains(file)) {
           deletedFileList.add(file);
-          hashCodeMap.remove(file);
+          subtreePaths.remove(file);
         }
       }
       return deletedFileList;

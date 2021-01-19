@@ -44,7 +44,11 @@ public class PathUtils {
     return new ConcurrentHashMap<>();
   }
 
-  public static Map<Path, HashCode> createHashCodeMap(Path file, FileHasher fileHasher)
+  public static <T> SortedMap<Path, T> subMap(SortedMap<Path, T> hashCodeMap, Path treeRoot) {
+    return hashCodeMap.subMap(treeRoot, Paths.get(treeRoot.toString(), "" + Character.MAX_VALUE));
+  }
+
+  public static SortedMap<Path, HashCode> createHashCodeMap(Path file, FileHasher fileHasher)
       throws IOException {
     return createHashCodeMap(Collections.singletonList(file), fileHasher);
   }
