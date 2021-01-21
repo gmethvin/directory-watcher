@@ -155,7 +155,7 @@ public class DirectoryWatcher {
   private final SortedMap<Path, HashCode> pathHashes;
   private final Map<WatchKey, Path> keyRoots;
 
-  // this is set to true/false depending on whether recursive watching is supported natively
+  // set to null until we check if FILE_TREE is supported
   private Boolean fileTreeSupported = null;
   private FileHasher fileHasher;
 
@@ -233,7 +233,8 @@ public class DirectoryWatcher {
           Path childPath = eventPath == null ? null : keyRoots.get(key).resolve(eventPath);
           logger.debug("{} [{}]", kind, childPath);
           /*
-           * If a directory is created, and we're watching recursively, then register it and its sub-directories.
+           * If a directory is created, and we're watching recursively, then register it
+           * and its sub-directories.
            */
           if (kind == OVERFLOW) {
             onEvent(EventType.OVERFLOW, childPath, count, rootPath);
@@ -245,8 +246,9 @@ public class DirectoryWatcher {
                 registerAll(childPath, rootPath);
               }
               /*
-               * Our custom Mac service sends subdirectory changes but the Windows/Linux do not.
-               * Walk the file tree to make sure we send create events for any files that were created.
+               * Our custom Mac service sends subdirectory changes but the Windows/Linux do
+               * not. Walk the file tree to make sure we send create events for any files that
+               * were created.
                */
               if (!isMac) {
                 PathUtils.recursiveVisitFiles(
@@ -261,14 +263,14 @@ public class DirectoryWatcher {
               onEvent(EventType.MODIFY, childPath, count, rootPath);
             } else {
               /*
-               * Note that existingHash may be null due to the file being created before we start listening
-               * It's important we don't discard the event in this case
+               * Note that existingHash may be null due to the file being created before we
+               * start listening It's important we don't discard the event in this case
                */
               HashCode existingHash = pathHashes.get(childPath);
 
               /*
-               * newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession.
-               * In this case the MODIFY event can be safely ignored
+               * newHash can be null when using File#delete() on windows - it generates MODIFY
+               * and DELETE in succession. In this case the MODIFY event can be safely ignored
                */
               HashCode newHash = PathUtils.hash(fileHasher, childPath);
 
@@ -347,7 +349,7 @@ public class DirectoryWatcher {
       // Try using FILE_TREE modifier since we aren't certain that it's unsupported
       try {
         register(start, true, context);
-        // We didn't get an UnsupportedOperationException so assume FILE_TREE is supported
+        // Assume FILE_TREE is supported
         fileTreeSupported = true;
       } catch (UnsupportedOperationException e) {
         // UnsupportedOperationException should only happen if FILE_TREE is unsupported

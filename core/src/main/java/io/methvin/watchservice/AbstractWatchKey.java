@@ -106,9 +106,11 @@ class AbstractWatchKey implements WatchKey {
 
   @Override
   public List<WatchEvent<?>> pollEvents() {
-    // note: it's correct to be able to retrieve more events from a key without calling reset()
-    // reset() is ONLY for "returning" the key to the watch service to potentially be retrieved by
-    // another thread when you're finished with it
+    /*
+     * Note: it's correct to be able to retrieve more events from a key without
+     * calling reset(). reset() is ONLY for "returning" the key to the watch service
+     * to potentially be retrieved by another thread when you're finished with it.
+     */
     List<WatchEvent<?>> result = new ArrayList<>(events.size());
     events.drainTo(result);
     int overflowCount = overflow.getAndSet(0);
@@ -120,8 +122,11 @@ class AbstractWatchKey implements WatchKey {
 
   @Override
   public boolean reset() {
-    // calling reset() multiple times without polling events would cause key to be placed in
-    // watcher queue multiple times, but not much that can be done about that
+    /*
+     * Calling reset() multiple times without polling events would cause key to be
+     * placed in the watcher queue multiple times, but not much that can be done
+     * about that.
+     */
     if (isValid() && state.compareAndSet(State.SIGNALLED, State.READY)) {
       // requeue if events are pending
       if (!events.isEmpty()) {
