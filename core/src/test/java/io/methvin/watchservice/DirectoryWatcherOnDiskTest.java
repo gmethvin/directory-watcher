@@ -18,6 +18,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.WatchEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -426,10 +427,7 @@ public class DirectoryWatcherOnDiskTest {
     List<Path> paths2 = createStructure2(p2);
     List<Path> paths3 = createStructure2(p3);
 
-    await()
-        .atMost(3, TimeUnit.SECONDS)
-        .pollDelay(100, TimeUnit.MILLISECONDS)
-        .until(() -> this.recorder.events.size() == 15);
+    wait(3, 15);
 
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
@@ -476,6 +474,62 @@ public class DirectoryWatcherOnDiskTest {
       await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 2);
       assertTrue(this.watcher.isClosed());
     }
+  }
+
+  @Test
+  public void observeIsDirectory() throws IOException, InterruptedException {
+    Path d1 = this.tmpDir.resolve("d1");
+    Files.createDirectory(d1);
+
+    this.watcher =
+          DirectoryWatcher.builder()
+                          .paths(Arrays.asList(new Path[] {d1}))
+                          .listener(this.recorder)
+                          .fileHashing(true)
+                          .build();
+    this.watcher.watchAsync();
+
+    final Path f1 = Files.createTempFile(d1, "f1-", ".dat");
+    Files.write(f1, new byte[] {counter++});
+
+    wait(3, 1);
+    assertEquals(DirectoryChangeEvent.EventType.CREATE, this.recorder.events.get(0).eventType());
+    assertFalse(this.recorder.events.get(0).isDirectory());
+
+    this.recorder.events.clear();
+    Files.write(f1, new byte[] {counter++});
+
+    wait(3, 1);
+    assertEquals(DirectoryChangeEvent.EventType.MODIFY, this.recorder.events.get(0).eventType());
+    assertFalse(this.recorder.events.get(0).isDirectory());
+
+    this.recorder.events.clear();
+    Path d2 = d1.resolve("d2");
+    Files.createDirectory(d2);
+
+    wait(3, 1);
+    assertEquals(DirectoryChangeEvent.EventType.CREATE, this.recorder.events.get(0).eventType());
+    assertTrue(this.recorder.events.get(0).isDirectory());
+
+    this.recorder.events.clear();
+    Files.deleteIfExists(f1);
+    wait(3, 1);
+    Files.deleteIfExists(d2);
+    wait(3, 2);
+    
+    assertEquals(DirectoryChangeEvent.EventType.DELETE, this.recorder.events.get(0).eventType());
+    assertFalse(this.recorder.events.get(0).isDirectory());
+
+    assertEquals(DirectoryChangeEvent.EventType.DELETE, this.recorder.events.get(1).eventType());
+    assertTrue(this.recorder.events.get(1).isDirectory());
+
+    this.watcher.close();
+  }
+
+  private void wait(int atMost, int untilSize) {
+    await().atMost(atMost, TimeUnit.SECONDS)
+           .pollDelay(100, TimeUnit.MILLISECONDS)
+           .until(() -> this.recorder.events.size() == untilSize);
   }
 
   private void ensureStill() {
