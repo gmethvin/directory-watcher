@@ -236,11 +236,14 @@ public class DirectoryWatcher {
            * If a directory is created, and we're watching recursively, then register it and its sub-directories.
            */
           if (kind == OVERFLOW) {
-            onEvent(EventType.OVERFLOW, childPath, count, rootPath);
+            boolean isDirectory = isDirectoryHash(pathHashes.get(childPath));
+            onEvent(EventType.OVERFLOW, isDirectory, childPath, count, rootPath);
           } else if (eventPath == null) {
             throw new IllegalStateException("WatchService returned a null path for " + kind.name());
           } else if (kind == ENTRY_CREATE) {
-            if (Files.isDirectory(childPath, NOFOLLOW_LINKS)) {
+            boolean isDirectory = Files.isDirectory(childPath, NOFOLLOW_LINKS);
+            if (isDirectory) {
+
               if (!Boolean.TRUE.equals(fileTreeSupported)) {
                 registerAll(childPath, rootPath);
               }
@@ -251,21 +254,23 @@ public class DirectoryWatcher {
               if (!isMac) {
                 PathUtils.recursiveVisitFiles(
                     childPath,
-                    dir -> notifyCreateEvent(dir, count, rootPath),
-                    file -> notifyCreateEvent(file, count, rootPath));
+                    dir -> { notifyCreateEvent(dir, count, rootPath, true); },
+                    file -> notifyCreateEvent(file, count, rootPath, false));
               }
             }
-            notifyCreateEvent(childPath, count, rootPath);
+            notifyCreateEvent(childPath, count, rootPath, isDirectory);
           } else if (kind == ENTRY_MODIFY) {
-            if (fileHasher == null) {
-              onEvent(EventType.MODIFY, childPath, count, rootPath);
-            } else {
-              /*
-               * Note that existingHash may be null due to the file being created before we start listening
-               * It's important we don't discard the event in this case
-               */
-              HashCode existingHash = pathHashes.get(childPath);
 
+            /*
+             * Note that existingHash may be null due to the file being created before we start listening
+             * It's important we don't discard the event in this case
+             */
+            HashCode existingHash = pathHashes.get(childPath);
+            boolean isDirectory = isDirectoryHash(existingHash);
+
+            if (fileHasher == null) {
+              onEvent(EventType.MODIFY, isDirectory, childPath, count, rootPath);
+            } else {
               /*
                * newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession.
                * In this case the MODIFY event can be safely ignored
@@ -274,7 +279,7 @@ public class DirectoryWatcher {
 
               if (newHash != null && !newHash.equals(existingHash)) {
                 pathHashes.put(childPath, newHash);
-                onEvent(EventType.MODIFY, childPath, count, rootPath);
+                onEvent(EventType.MODIFY, isDirectory, childPath, count, rootPath);
               } else if (newHash == null) {
                 logger.debug(
                     "Failed to hash modified file [{}]. It may have been deleted.", childPath);
@@ -283,13 +288,15 @@ public class DirectoryWatcher {
           } else if (kind == ENTRY_DELETE) {
             // we cannot tell if this was a file or folder, but we can look at subpaths
             if (fileHasher == null) {
+              boolean isDirectory = isDirectoryHash(pathHashes.remove(childPath));
               // hashing is disabled, so just notify on the path we got the event for
-              onEvent(EventType.DELETE, childPath, count, rootPath);
+              onEvent(EventType.DELETE, isDirectory, childPath, count, rootPath);
             } else {
               // hashing is enabled, so we may know other paths that need to be deleted
               Set<Path> subtreePaths = PathUtils.subMap(pathHashes, childPath).keySet();
               for (Path path : subtreePaths) {
-                onEvent(EventType.DELETE, path, count, rootPath);
+                boolean isDirectory = isDirectoryHash(pathHashes.remove(path));
+                onEvent(EventType.DELETE, isDirectory, path, count, rootPath);
               }
               // this will remove from the original map
               subtreePaths.clear();
@@ -323,10 +330,10 @@ public class DirectoryWatcher {
     }
   }
 
-  private void onEvent(EventType eventType, Path childPath, int count, Path rootPath)
+  private void onEvent(EventType eventType, boolean isDirectory, Path childPath, int count, Path rootPath)
       throws IOException {
-    logger.debug("-> {} [{}]", eventType, childPath);
-    listener.onEvent(new DirectoryChangeEvent(eventType, childPath, count, rootPath));
+    logger.debug("-> {} [{}] (isDirectory: {})", eventType, isDirectory, childPath);
+    listener.onEvent(new DirectoryChangeEvent(eventType, isDirectory, childPath, count, rootPath));
   }
 
   public DirectoryChangeListener getListener() {
@@ -378,9 +385,9 @@ public class DirectoryWatcher {
     registeredPathToRootPath.put(directory, context);
   }
 
-  private void notifyCreateEvent(Path path, int count, Path context) throws IOException {
+  private void notifyCreateEvent(Path path, int count, Path context, boolean isDirectory) throws IOException {
     if (fileHasher == null) {
-      onEvent(EventType.CREATE, path, count, context);
+      onEvent(EventType.CREATE, isDirectory, path, count, context);
     } else {
       HashCode newHash = PathUtils.hash(fileHasher, path);
       if (newHash == null) {
@@ -390,15 +397,19 @@ public class DirectoryWatcher {
           logger.debug("Failed to hash created file [{}]. It may have been deleted.", path);
         } else {
           logger.debug("Failed to hash created file [{}]. It may be locked.", path);
-          onEvent(EventType.CREATE, path, count, context);
+          onEvent(EventType.CREATE, isDirectory, path, count, context);
         }
       } else {
         // Notify for the file create if not already notified
         if (!pathHashes.containsKey(path)) {
-          onEvent(EventType.CREATE, path, count, context);
+          onEvent(EventType.CREATE, isDirectory, path, count, context);
           pathHashes.put(path, newHash);
         }
       }
     }
+  }
+
+  private boolean isDirectoryHash(HashCode hashCode) {
+    return hashCode != null && HashCode.EMPTY.equals(hashCode);
   }
 }

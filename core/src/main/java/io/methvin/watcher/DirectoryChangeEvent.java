@@ -45,12 +45,14 @@ public final class DirectoryChangeEvent {
   }
 
   private final EventType eventType;
+  private final boolean isDirectory;
   private final Path path;
   private final int count;
   private final Path rootPath;
 
-  public DirectoryChangeEvent(EventType eventType, Path path, int count, Path rootPath) {
+  public DirectoryChangeEvent(EventType eventType, boolean isDirectory, Path path, int count, Path rootPath) {
     this.eventType = eventType;
+    this.isDirectory = isDirectory;
     this.path = path;
     this.count = count;
     this.rootPath = rootPath;
@@ -58,6 +60,10 @@ public final class DirectoryChangeEvent {
 
   public EventType eventType() {
     return eventType;
+  }
+
+  public boolean isDirectory() {
+    return isDirectory;
   }
 
   public Path path() {
@@ -85,13 +91,14 @@ public final class DirectoryChangeEvent {
 
     return count == that.count
         && eventType == that.eventType
+        && isDirectory == that.isDirectory
         && Objects.equals(path, that.path)
         && Objects.equals(rootPath, that.rootPath);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(eventType, path, count, rootPath);
+    return Objects.hash(eventType, isDirectory, path, count, rootPath);
   }
 
   @Override
@@ -99,6 +106,8 @@ public final class DirectoryChangeEvent {
     return "DirectoryChangeEvent{"
         + "eventType="
         + eventType
+        + ", isDirectory="
+        + isDirectory
         + ", path="
         + path
         + ", count="
