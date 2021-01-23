@@ -334,7 +334,7 @@ public class DirectoryWatcher {
 
   private void onEvent(EventType eventType, boolean isDirectory, Path childPath, int count, Path rootPath)
       throws IOException {
-    logger.debug("-> {} [{}, {}]", eventType, isDirectory, childPath);
+    logger.debug("-> {} [{}] (isDirectory: {})", eventType, isDirectory, childPath);
     listener.onEvent(new DirectoryChangeEvent(eventType, isDirectory, childPath, count, rootPath));
   }
 
