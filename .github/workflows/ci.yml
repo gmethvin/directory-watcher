@@ -22,7 +22,7 @@ jobs:
       - name: Setup Java and Scala
         uses: olafurpg/setup-scala@v10
         with:
-          java-version: 15
+          java-version: adopt@1.15
 
       - name: Check formatting
         run: sbt javafmtCheckAll scalafmtCheckAll

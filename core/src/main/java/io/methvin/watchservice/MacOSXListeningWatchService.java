@@ -36,8 +36,8 @@ import static java.nio.file.StandardWatchEventKinds.*;
  * This class contains the bulk of my implementation of the Watch Service API. It hooks into
  * Carbon's File System Events API.
  *
- * @author Steve McLeod
  * @author Greg Methvin
+ * @author Steve McLeod
  */
 public class MacOSXListeningWatchService extends AbstractWatchService {
 
@@ -112,7 +112,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     this(new Config() {});
   }
 
-  private final long kFSEventStreamEventIdSinceNow = -1; //  this is 0xFFFFFFFFFFFFFFFF
+  private final long kFSEventStreamEventIdSinceNow = -1; // this is 0xFFFFFFFFFFFFFFFF
   private final int kFSEventStreamCreateFlagNoDefer = 0x00000002;
   private final int kFSEventStreamCreateFlagFileEvents = 0x00000010;
 
@@ -248,15 +248,16 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
         Pointer clientCallBackInfo,
         NativeLong numEvents,
         Pointer eventPaths,
-        Pointer /* array of unsigned int */ eventFlags,
-        /* array of unsigned long */ Pointer eventIds) {
+        Pointer eventFlags /* array of unsigned int */,
+        Pointer eventIds /* array of unsigned long */) {
       final int length = numEvents.intValue();
 
       for (String fileName : eventPaths.getStringArray(0, length)) {
         /*
-         * Note: If file-level events are enabled, fileName will be an individual file so we usually won't recurse.
-         *       It is necessary to normalise the filename back to what is used in the key roots.
-         *       Because the watcher returns real paths, but relative paths may have be used in the key roots;
+         * Note: If file-level events are enabled, fileName will be an individual file
+         * so we usually won't recurse. It is necessary to normalise the filename back
+         * to what is used in the key roots. Because the watcher returns real paths, but
+         * relative paths may have be used in the key roots;
          */
 
         // only substring, if there are child paths, else just return absPath
@@ -271,15 +272,18 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
           throw new IllegalStateException("Could not recursively list files for " + path, e);
         }
         /*
-         * We collect and process all actions for each category of created, modified and deleted as it appears a first thread
-         * can start while a second thread can get through faster. If we do the collection for each category in a second
-         * thread can get to the processing of modifications before the first thread is finished processing creates.
-         * In this case the modification will not be reported correctly.
+         * We collect and process all actions for each category of created, modified and
+         * deleted as it appears a first thread can start while a second thread can get
+         * through faster. If we do the collection for each category in a second thread
+         * can get to the processing of modifications before the first thread is
+         * finished processing creates. In this case the modification will not be
+         * reported correctly.
          *
-         * NOTE: We are now using a hash to determine if a file is different because if modifications happens closely
-         * together the last modified time is not granular enough to be seen as a modification. This likely mitigates
-         * the issue I originally saw where the ordering was incorrect but I will leave the collection and processing
-         * of each category together.
+         * NOTE: We are now using a hash to determine if a file is different because if
+         * modifications happens closely together the last modified time is not granular
+         * enough to be seen as a modification. This likely mitigates the issue I
+         * originally saw where the ordering was incorrect but I will leave the
+         * collection and processing of each category together.
          */
 
         for (Path file : findCreatedFiles(filesOnDisk)) {
