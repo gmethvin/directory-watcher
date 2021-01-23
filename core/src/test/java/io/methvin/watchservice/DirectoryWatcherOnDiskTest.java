@@ -5,6 +5,7 @@ import io.methvin.watcher.DirectoryChangeEvent;
 import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
 import io.methvin.watcher.hashing.FileHasher;
+import io.methvin.watcher.hashing.Hash;
 import io.methvin.watcher.hashing.HashCode;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
@@ -16,6 +17,7 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.lang.instrument.UnmodifiableClassException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.Files;
@@ -23,6 +25,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -523,6 +526,39 @@ public class DirectoryWatcherOnDiskTest {
 
     assertEquals(DirectoryChangeEvent.EventType.DELETE, this.recorder.events.get(1).eventType());
     assertTrue(this.recorder.events.get(1).isDirectory());
+
+    this.watcher.close();
+  }
+
+  @Test
+  public void observePreHashes() throws IOException, InterruptedException {
+    Path d1 = this.tmpDir.resolve("d1");
+    Files.createDirectory(d1);
+
+    final Path f1 = Files.createTempFile(d1, "f1-", ".dat");
+    Files.write(f1, new byte[] {counter++});
+
+    this.watcher =
+          DirectoryWatcher.builder()
+                          .paths(Arrays.asList(new Path[] {d1}))
+                          .listener(this.recorder)
+                          .fileHashing(true)
+                          .build();
+
+    this.watcher.watchAsync();
+
+    Map<Path, Hash> map = this.watcher.pathHashes();
+    assertEquals(Hash.DIRECTORY, map.get(d1));
+
+    HashCode hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
+    assertEquals(hashCode1, map.get(f1));
+
+    try {
+      final Path f2 = Files.createTempFile(d1, "f2-", ".dat");
+      map.put(f2, null);
+      fail("Exception should be thrown");
+    } catch (UnsupportedOperationException e) {
+    }
 
     this.watcher.close();
   }

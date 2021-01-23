@@ -14,6 +14,7 @@
 package io.methvin.watcher;
 
 import io.methvin.watcher.hashing.FileHasher;
+import io.methvin.watcher.hashing.Hash;
 import io.methvin.watcher.hashing.HashCode;
 
 import java.io.IOException;
@@ -25,7 +26,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 
 public class PathUtils {
 
-  public static HashCode hash(FileHasher fileHasher, Path path) {
+  public static Hash hash(FileHasher fileHasher, Path path) {
     try {
       if (Files.isDirectory(path)) {
         return HashCode.directory();
@@ -48,18 +49,18 @@ public class PathUtils {
     return hashCodeMap.subMap(treeRoot, Paths.get(treeRoot.toString(), "" + Character.MAX_VALUE));
   }
 
-  public static SortedMap<Path, HashCode> createHashCodeMap(Path file, FileHasher fileHasher)
+  public static SortedMap<Path, Hash> createHashCodeMap(Path file, FileHasher fileHasher)
       throws IOException {
     return createHashCodeMap(Collections.singletonList(file), fileHasher);
   }
 
-  public static SortedMap<Path, HashCode> createHashCodeMap(List<Path> files, FileHasher fileHasher)
+  public static SortedMap<Path, Hash> createHashCodeMap(List<Path> files, FileHasher fileHasher)
       throws IOException {
-    SortedMap<Path, HashCode> lastModifiedMap = new ConcurrentSkipListMap<>();
+    SortedMap<Path, Hash> lastModifiedMap = new ConcurrentSkipListMap<>();
     if (fileHasher != null) {
       for (Path file : files) {
         for (Path child : recursiveListFiles(file)) {
-          HashCode hash = PathUtils.hash(fileHasher, child);
+          Hash hash = PathUtils.hash(fileHasher, child);
           if (hash != null) {
             lastModifiedMap.put(child, hash);
           }

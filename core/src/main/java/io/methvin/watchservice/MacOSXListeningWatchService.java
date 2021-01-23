@@ -17,6 +17,7 @@ import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 import io.methvin.watcher.PathUtils;
 import io.methvin.watcher.hashing.FileHasher;
+import io.methvin.watcher.hashing.Hash;
 import io.methvin.watcher.hashing.HashCode;
 import io.methvin.watchservice.jna.*;
 
@@ -126,8 +127,8 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       if (file.startsWith(watchedPath)) return watchKey;
     }
 
-    final SortedMap<Path, HashCode> hashCodeMap = PathUtils.createHashCodeMap(file, fileHasher);
-    final Pointer[] values = {CFStringRef.toCFString(file.toString()).getPointer()};
+    final SortedMap<Path, Hash> hashCodeMap = PathUtils.createHashCodeMap(file, fileHasher);
+    final Pointer[]             values      = {CFStringRef.toCFString(file.toString()).getPointer()};
     final CFArrayRef pathsToWatch =
         CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);
     final MacOSXListeningCallback callback =
@@ -215,7 +216,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
 
   private static class MacOSXListeningCallback implements CarbonAPI.FSEventStreamCallback {
     private final MacOSXWatchKey watchKey;
-    private final SortedMap<Path, HashCode> hashCodeMap;
+    private final SortedMap<Path, Hash> hashCodeMap;
     private final FileHasher fileHasher;
     private final Path realPath;
     private final Path absPath;
@@ -226,7 +227,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     private MacOSXListeningCallback(
         MacOSXWatchKey watchKey,
         FileHasher fileHasher,
-        SortedMap<Path, HashCode> hashCodeMap,
+        SortedMap<Path, Hash> hashCodeMap,
         Path absPath)
         throws IOException {
       this.watchKey = watchKey;
@@ -322,8 +323,8 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     private List<Path> findModifiedFiles(Set<Path> filesOnDisk) {
       List<Path> modifiedFileList = new ArrayList<Path>();
       for (Path file : filesOnDisk) {
-        HashCode storedHashCode = hashCodeMap.get(file);
-        HashCode newHashCode = PathUtils.hash(fileHasher, file);
+        Hash storedHashCode = hashCodeMap.get(file);
+        Hash newHashCode = PathUtils.hash(fileHasher, file);
         if (newHashCode != null && !newHashCode.equals(storedHashCode)) {
           modifiedFileList.add(file);
           hashCodeMap.put(file, newHashCode);
@@ -336,7 +337,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       List<Path> createdFileList = new ArrayList<Path>();
       for (Path file : filesOnDisk) {
         if (!hashCodeMap.containsKey(file)) {
-          HashCode hashCode = PathUtils.hash(fileHasher, file);
+          Hash hashCode = PathUtils.hash(fileHasher, file);
           if (hashCode != null) {
             createdFileList.add(file);
             hashCodeMap.put(file, hashCode);
