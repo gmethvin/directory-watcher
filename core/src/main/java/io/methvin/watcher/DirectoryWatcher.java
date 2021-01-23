@@ -154,7 +154,6 @@ public class DirectoryWatcher {
   private final boolean isMac;
   private final DirectoryChangeListener listener;
   private final SortedMap<Path, HashCode> pathHashes;
-  private final Set<Path> directories;
   private final Map<WatchKey, Path> keyRoots;
 
   // this is set to true/false depending on whether recursive watching is supported natively
@@ -176,7 +175,6 @@ public class DirectoryWatcher {
     this.watchService = watchService;
     this.isMac = watchService instanceof MacOSXListeningWatchService;
     this.pathHashes = PathUtils.createHashCodeMap(paths, fileHasher);
-    this.directories = new HashSet<>();
     this.keyRoots = PathUtils.createKeyRootsMap();
     this.fileHasher = fileHasher;
     this.logger = logger;
@@ -239,13 +237,14 @@ public class DirectoryWatcher {
            * If a directory is created, and we're watching recursively, then register it and its sub-directories.
            */
           if (kind == OVERFLOW) {
-            boolean isDirectory = this.directories.contains(childPath);
+            boolean isDirectory = isDirectory(pathHashes.get(childPath));
             onEvent(EventType.OVERFLOW, isDirectory, childPath, count, rootPath);
           } else if (eventPath == null) {
             throw new IllegalStateException("WatchService returned a null path for " + kind.name());
           } else if (kind == ENTRY_CREATE) {
+            boolean isDirectory = false;
             if (Files.isDirectory(childPath, NOFOLLOW_LINKS)) {
-              this.directories.add(childPath);
+              isDirectory = true;
 
               if (!Boolean.TRUE.equals(fileTreeSupported)) {
                 registerAll(childPath, rootPath);
@@ -257,22 +256,23 @@ public class DirectoryWatcher {
               if (!isMac) {
                 PathUtils.recursiveVisitFiles(
                     childPath,
-                    dir -> { this.directories.add(dir); notifyCreateEvent(dir, count, rootPath); },
-                    file -> notifyCreateEvent(file, count, rootPath));
+                    dir -> { notifyCreateEvent(dir, count, rootPath, true); },
+                    file -> notifyCreateEvent(file, count, rootPath, false));
               }
             }
-            notifyCreateEvent(childPath, count, rootPath);
+            notifyCreateEvent(childPath, count, rootPath, isDirectory);
           } else if (kind == ENTRY_MODIFY) {
-            boolean isDirectory = this.directories.contains(childPath);
+
+            /*
+             * Note that existingHash may be null due to the file being created before we start listening
+             * It's important we don't discard the event in this case
+             */
+            HashCode existingHash = pathHashes.get(childPath);
+            boolean isDirectory = isDirectory(existingHash);
+
             if (fileHasher == null) {
               onEvent(EventType.MODIFY, isDirectory, childPath, count, rootPath);
             } else {
-              /*
-               * Note that existingHash may be null due to the file being created before we start listening
-               * It's important we don't discard the event in this case
-               */
-              HashCode existingHash = pathHashes.get(childPath);
-
               /*
                * newHash can be null when using File#delete() on windows - it generates MODIFY and DELETE in succession.
                * In this case the MODIFY event can be safely ignored
@@ -290,14 +290,14 @@ public class DirectoryWatcher {
           } else if (kind == ENTRY_DELETE) {
             // we cannot tell if this was a file or folder, but we can look at subpaths
             if (fileHasher == null) {
-              boolean isDirectory = this.directories.remove(childPath);
+              boolean isDirectory = isDirectory(pathHashes.remove(childPath));
               // hashing is disabled, so just notify on the path we got the event for
               onEvent(EventType.DELETE, isDirectory, childPath, count, rootPath);
             } else {
               // hashing is enabled, so we may know other paths that need to be deleted
               Set<Path> subtreePaths = PathUtils.subMap(pathHashes, childPath).keySet();
               for (Path path : subtreePaths) {
-                boolean isDirectory = this.directories.remove(path);
+                boolean isDirectory = isDirectory(pathHashes.remove(path));
                 onEvent(EventType.DELETE, isDirectory, path, count, rootPath);
               }
               // this will remove from the original map
@@ -387,8 +387,7 @@ public class DirectoryWatcher {
     registeredPathToRootPath.put(directory, context);
   }
 
-  private void notifyCreateEvent(Path path, int count, Path context) throws IOException {
-    boolean isDirectory = this.directories.contains(path);
+  private void notifyCreateEvent(Path path, int count, Path context, boolean isDirectory) throws IOException {
     if (fileHasher == null) {
       onEvent(EventType.CREATE, isDirectory, path, count, context);
     } else {
@@ -410,5 +409,9 @@ public class DirectoryWatcher {
         }
       }
     }
+  }
+
+  private boolean isDirectory(HashCode hashCode) {
+    return hashCode != null && hashCode.equals(HashCode.EMPTY);
   }
 }
