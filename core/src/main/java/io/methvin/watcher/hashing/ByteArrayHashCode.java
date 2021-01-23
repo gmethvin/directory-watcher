@@ -19,46 +19,38 @@ import java.util.Base64;
 import java.util.Formatter;
 
 /** A class representing the hash code of a file. */
-public class HashCode implements Hash {
+public class ByteArrayHashCode implements Hash {
   private final byte[] value;
 
-  public static final HashCode EMPTY = new HashCode(new byte[0]);
+  public static final ByteArrayHashCode EMPTY = new ByteArrayHashCode(new byte[0]);
 
-  public static HashCode fromBytes(byte[] value) {
-    return new HashCode(Arrays.copyOf(value, value.length));
+  public static ByteArrayHashCode fromBytes(byte[] value) {
+    return new ByteArrayHashCode(Arrays.copyOf(value, value.length));
   }
 
-  public static HashCode fromLong(long value) {
+  public static ByteArrayHashCode fromLong(long value) {
     ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
     buffer.putLong(value);
-    return new HashCode(buffer.array());
+    return new ByteArrayHashCode(buffer.array());
   }
 
-  public static HashCode empty() {
+  public static ByteArrayHashCode empty() {
     return EMPTY;
   }
 
-  HashCode(byte[] value) {
+  ByteArrayHashCode(byte[] value) {
     this.value = value;
   }
 
-  @Override public String asString() {
-    return Base64.getEncoder().encodeToString(value);
+  byte[] value() {
+    return this.value;
   }
-
-  @Override public byte[] asBytes() {
-    byte[] clone = new byte[value.length];
-    System.arraycopy(value, 0, clone, 0, value.length);
-    return clone;
-  }
-
-
 
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    HashCode hashCode = (HashCode) o;
+    ByteArrayHashCode hashCode = (ByteArrayHashCode) o;
     return Arrays.equals(value, hashCode.value);
   }
 

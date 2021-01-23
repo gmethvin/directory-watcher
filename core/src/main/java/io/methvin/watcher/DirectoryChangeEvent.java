@@ -19,6 +19,7 @@ import java.nio.file.WatchEvent;
 import java.util.Objects;
 
 import io.methvin.watcher.hashing.Hash;
+import io.methvin.watcher.hashing.Murmur3FAccessor;
 
 public final class DirectoryChangeEvent {
   public enum EventType {
@@ -122,7 +123,7 @@ public final class DirectoryChangeEvent {
            + ", rootPath="
            + rootPath
            + ", hash="
-           + ((hash == null) ? "(null)" : hash.asString()) // don't want the printout to be too long
+           + ((hash == null) ? "(null)" : Murmur3FAccessor.asString(hash)) // don't want the printout to be too long
            + '}';
   }
 }

@@ -5,7 +5,8 @@ import io.methvin.watcher.DirectoryChangeEvent;
 import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
 import io.methvin.watcher.hashing.FileHasher;
-import io.methvin.watcher.hashing.HashCode;
+import io.methvin.watcher.hashing.Hash;
+import io.methvin.watcher.hashing.ByteArrayHashCode;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Assert;
@@ -23,6 +24,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -529,6 +531,39 @@ public class DirectoryWatcherOnDiskTest {
   }
 
   @Test
+  public void observePreHashes() throws IOException, InterruptedException {
+    Path d1 = this.tmpDir.resolve("d1");
+    Files.createDirectory(d1);
+
+    final Path f1 = Files.createTempFile(d1, "f1-", ".dat");
+    Files.write(f1, new byte[] {counter++});
+
+    this.watcher =
+          DirectoryWatcher.builder()
+                          .paths(Arrays.asList(new Path[] {d1}))
+                          .listener(this.recorder)
+                          .fileHashing(true)
+                          .build();
+
+    this.watcher.watchAsync();
+
+    Map<Path, Hash> map = this.watcher.pathHashes();
+    assertEquals(ByteArrayHashCode.empty(), map.get(d1));
+
+    ByteArrayHashCode hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
+    assertEquals(hashCode1, map.get(f1));
+
+    try {
+      final Path f2 = Files.createTempFile(d1, "f2-", ".dat");
+      map.put(f2, null);
+      fail("Exception should be thrown");
+    } catch (UnsupportedOperationException e) {
+    }
+
+    this.watcher.close();
+  }
+
+  @Test
   public void observeHashes() throws IOException, InterruptedException {
     Path d1 = this.tmpDir.resolve("d1");
     Files.createDirectory(d1);
@@ -546,7 +581,7 @@ public class DirectoryWatcherOnDiskTest {
     Files.write(f1, new byte[] {counter++});
     waitRecorderSize(3, 1);
 
-    HashCode hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
+    ByteArrayHashCode hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
     assertNotSame(hashCode1, this.recorder.events.get(0).hash());
     assertEquals(hashCode1, this.recorder.events.get(0).hash());
 
@@ -554,7 +589,7 @@ public class DirectoryWatcherOnDiskTest {
     Files.write(f1, new byte[] {counter++});
     waitRecorderSize(3, 1);
 
-    HashCode hashCode2 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
+    ByteArrayHashCode hashCode2 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
     assertNotEquals(hashCode2, hashCode1);
     assertNotSame(hashCode2, this.recorder.events.get(0).hash());
     assertEquals(hashCode2, this.recorder.events.get(0).hash());

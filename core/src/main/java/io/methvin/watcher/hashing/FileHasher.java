@@ -42,7 +42,7 @@ public interface FileHasher {
             murmur.update(b);
           }
         }
-        return HashCode.fromBytes(murmur.getValueBytesBigEndian());
+        return ByteArrayHashCode.fromBytes(murmur.getValueBytesBigEndian());
       };
 
   /**
@@ -57,8 +57,8 @@ public interface FileHasher {
         ByteBuffer buffer = ByteBuffer.allocate(2 * Long.BYTES);
         buffer.putLong(modifyTime.getEpochSecond());
         buffer.putLong(modifyTime.getNano());
-        return new HashCode(buffer.array());
+        return new ByteArrayHashCode(buffer.array());
       };
 
-  HashCode hash(Path path) throws IOException;
+  ByteArrayHashCode hash(Path path) throws IOException;
 }
