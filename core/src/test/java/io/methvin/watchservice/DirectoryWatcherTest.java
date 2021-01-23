@@ -148,14 +148,14 @@ public class DirectoryWatcherTest {
 
   private void runWatcher(Path directory, WatchService watchService, boolean fileHashing)
       throws Exception {
-    //
-    // start our service
-    // play our events
-    // stop when all our events have been drained and processed
-    //
-    // We wait 500ms before deletes are executed because any faster and the MacOS implementation
-    // appears to not see them because the create/delete pair happen so fast it's like the file
-    // is never there at all.
+    /*
+     * Run our service, play our events, then stop when all events have been drained
+     * and processed.
+     *
+     * We wait 500ms before deletes are executed because any faster and the MacOS
+     * implementation appears not to see them because the create/delete pair happen
+     * so fast it's like the file is never there at all.
+     */
     int waitInMs = 500;
     FileSystem fileSystem =
         new FileSystem(directory)
@@ -196,7 +196,7 @@ public class DirectoryWatcherTest {
     CompletableFuture<Void> future = watcher.watchAsync();
     // Play our filesystem events
     fileSystem.playActions();
-    // Wait for the future to complete which is when the right number of events are captured
+    // Wait for the future to complete
     future.get(10, TimeUnit.SECONDS);
     ListMultimap<String, WatchEvent.Kind<?>> events = listener.events;
     // Close the watcher
@@ -204,14 +204,15 @@ public class DirectoryWatcherTest {
 
     // Let's see if everything works!
     assertEquals("actions.size", actions.size(), events.size());
-    //
-    // Now we make a map of the events keyed by the path. The order in which we
-    // play the filesystem actions is not necessarily the order in which the events are
-    // emitted. In the test above I often see the create file event for three.txt before
-    // two.txt. We just want to make sure that the action for a particular path agrees
-    // with the corresponding event for that file. For a given path we definitely want
-    // the order of the played actions to match the order of the events emitted.
-    //
+    /*
+     * Now we make a map of the events keyed by the path. The order in which we play
+     * the filesystem actions is not necessarily the order in which the events are
+     * emitted. In the test above I often see the create file event for three.txt
+     * before two.txt. We just want to make sure that the action for a particular
+     * path agrees with the corresponding event for that file. For a given path we
+     * definitely want the order of the played actions to match the order of the
+     * events emitted.
+     */
     List<WatchEvent.Kind<?>> one = events.get("one.txt");
     assertEquals("one.size", 2, one.size());
     assertEquals(one.get(0), actions.get(0).kind);
@@ -249,7 +250,7 @@ public class DirectoryWatcherTest {
     final boolean fileHashing;
     int actionsProcessed = 0;
 
-    // keep track of recent creates so we can ignore create/modify pairs
+    // Keep track of recent creates so we can ignore create/modify pairs
     final ConcurrentHashMap<Path, Long> createTimes = new ConcurrentHashMap<>();
 
     public TestDirectoryChangeListener(
@@ -268,7 +269,10 @@ public class DirectoryWatcherTest {
       if (!fileHashing
           && event.eventType() == DirectoryChangeEvent.EventType.MODIFY
           && System.currentTimeMillis() - createTimes.getOrDefault(event.path(), 0L) < 100) {
-        /* ignore this event since it's a create paired with a modify, which we allow when file hashing is disabled */
+        /*
+         * Ignore this event since it's a create paired with a modify, which we allow
+         * when file hashing is disabled.
+         */
         return;
       }
       updateActions(event.path(), event.eventType().getWatchEventKind());
