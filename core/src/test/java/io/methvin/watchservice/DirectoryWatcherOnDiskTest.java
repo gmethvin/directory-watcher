@@ -506,7 +506,7 @@ public class DirectoryWatcherOnDiskTest {
     this.recorder.events.clear();
     Path d2 = d1.resolve("d2");
     Files.createDirectory(d2);
-    
+
     wait(3, 1);
     assertEquals(DirectoryChangeEvent.EventType.CREATE, this.recorder.events.get(0).eventType());
     assertTrue(this.recorder.events.get(0).isDirectory());

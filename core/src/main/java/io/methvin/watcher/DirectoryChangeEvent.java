@@ -98,7 +98,7 @@ public final class DirectoryChangeEvent {
 
   @Override
   public int hashCode() {
-    return Objects.hash(eventType, path, count, rootPath);
+    return Objects.hash(eventType, isDirectory, path, count, rootPath);
   }
 
   @Override
