@@ -335,7 +335,8 @@ public class DirectoryWatcher {
   private void onEvent(EventType eventType, boolean isDirectory, Path childPath, int count, Path rootPath)
       throws IOException {
     logger.debug("-> {} [{}] (isDirectory: {})", eventType, isDirectory, childPath);
-    listener.onEvent(new DirectoryChangeEvent(eventType, isDirectory, childPath, count, rootPath));
+    HashCode hashCode = pathHashes.get(childPath);
+    listener.onEvent(new DirectoryChangeEvent(eventType, isDirectory, childPath, hashCode, count, rootPath));
   }
 
   public DirectoryChangeListener getListener() {
@@ -404,14 +405,14 @@ public class DirectoryWatcher {
       } else {
         // Notify for the file create if not already notified
         if (!pathHashes.containsKey(path)) {
-          onEvent(EventType.CREATE, isDirectory, path, count, context);
           pathHashes.put(path, newHash);
+          onEvent(EventType.CREATE, isDirectory, path, count, context);
         }
       }
     }
   }
 
   private boolean isDirectory(HashCode hashCode) {
-    return hashCode != null && hashCode.equals(HashCode.EMPTY);
+    return hashCode != null && hashCode.equals(HashCode.DIRECTORY);
   }
 }

@@ -15,12 +15,14 @@ package io.methvin.watcher.hashing;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Formatter;
 
 /** A class representing the hash code of a file. */
-public class HashCode {
-  public static final HashCode EMPTY = HashCode.fromBytes(new  byte[0]);
+public class HashCode implements Hash {
   private final byte[] value;
+
+  public static final HashCode DIRECTORY = new HashCode(new byte[0]);
 
   public static HashCode fromBytes(byte[] value) {
     return new HashCode(Arrays.copyOf(value, value.length));
@@ -32,13 +34,25 @@ public class HashCode {
     return new HashCode(buffer.array());
   }
 
-  public static HashCode empty() {
-    return EMPTY;
+  public static HashCode directory() {
+    return DIRECTORY;
   }
 
   HashCode(byte[] value) {
     this.value = value;
   }
+
+  @Override public String asString() {
+    return Base64.getEncoder().encodeToString(value);
+  }
+
+  @Override public byte[] asBytes() {
+    byte[] clone = new byte[value.length];
+    System.arraycopy(value, 0, clone, 0, value.length);
+    return clone;
+  }
+
+
 
   @Override
   public boolean equals(Object o) {

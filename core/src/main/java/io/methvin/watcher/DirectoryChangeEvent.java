@@ -18,6 +18,8 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.util.Objects;
 
+import io.methvin.watcher.hashing.Hash;
+
 public final class DirectoryChangeEvent {
   public enum EventType {
 
@@ -45,14 +47,16 @@ public final class DirectoryChangeEvent {
   }
 
   private final EventType eventType;
-  private final boolean isDirectory;
-  private final Path path;
-  private final int count;
-  private final Path rootPath;
+  private final boolean   isDirectory;
+  private final Path      path;
+  private final Hash      hash;
+  private final int       count;
+  private final Path      rootPath;
 
-  public DirectoryChangeEvent(EventType eventType, boolean isDirectory, Path path, int count, Path rootPath) {
+  public DirectoryChangeEvent(EventType eventType, boolean isDirectory, Path path, Hash hash, int count, Path rootPath) {
     this.eventType = eventType;
     this.isDirectory = isDirectory;
+    this.hash = hash;
     this.path = path;
     this.count = count;
     this.rootPath = rootPath;
@@ -78,6 +82,8 @@ public final class DirectoryChangeEvent {
     return rootPath;
   }
 
+  public Hash hash() { return hash; }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -90,30 +96,33 @@ public final class DirectoryChangeEvent {
     DirectoryChangeEvent that = (DirectoryChangeEvent) o;
 
     return count == that.count
-        && eventType == that.eventType
-        && isDirectory == that.isDirectory
-        && Objects.equals(path, that.path)
-        && Objects.equals(rootPath, that.rootPath);
+           && eventType == that.eventType
+           && isDirectory == that.isDirectory
+           && Objects.equals(path, that.path)
+           && Objects.equals(rootPath, that.rootPath)
+           && Objects.equals(hash, that.hash);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(eventType, isDirectory, path, count, rootPath);
+    return Objects.hash(eventType, isDirectory, path, count, rootPath, hash);
   }
 
   @Override
   public String toString() {
     return "DirectoryChangeEvent{"
-        + "eventType="
-        + eventType
-        + ", isDirectory="
-        + isDirectory
-        + ", path="
-        + path
-        + ", count="
-        + count
-        + ", rootPath="
-        + rootPath
-        + '}';
+           + "eventType="
+           + eventType
+           + ", isDirectory="
+           + isDirectory
+           + ", path="
+           + path
+           + ", count="
+           + count
+           + ", rootPath="
+           + rootPath
+           + ", hash="
+           + ((hash == null) ? "(null)" : hash.asString()) // don't want the printout to be too long
+           + '}';
   }
 }

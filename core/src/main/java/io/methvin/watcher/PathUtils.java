@@ -28,7 +28,7 @@ public class PathUtils {
   public static HashCode hash(FileHasher fileHasher, Path path) {
     try {
       if (Files.isDirectory(path)) {
-        return HashCode.empty();
+        return HashCode.directory();
       } else {
         if (!Files.exists(path)) {
           return null;
