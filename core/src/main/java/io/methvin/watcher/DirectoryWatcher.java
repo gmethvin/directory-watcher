@@ -129,7 +129,10 @@ public class DirectoryWatcher {
                 new MacOSXListeningWatchService.Config() {
                   @Override
                   public FileHasher fileHasher() {
-                    return fileHasher;
+                    // Always return null here. When MacOSXListeningWatchService is used with DirectoryWatcher
+                    // Then the hashing must happen within DirectoryWatcher. If users wish to override this then
+                    // they must instantiate MacOSXListeningWatchService and pass it to DirectoryWatcher.
+                    return null;
                   }
                 }));
       } else {
