@@ -2,8 +2,6 @@ package io.methvin.watcher.hashing;
 
 import java.util.Base64;
 
-import com.google.common.hash.HashCode;
-
 public interface Murmur3FAccessor {
 
    static String asString(Hash hash) {
