@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 
@@ -153,6 +154,7 @@ public class DirectoryWatcher {
   private final boolean isMac;
   private final DirectoryChangeListener listener;
   private final SortedMap<Path, HashCode> pathHashes;
+  private final Map<Path, HashCode> directories;
   private final Map<WatchKey, Path> keyRoots;
 
   // this is set to true/false depending on whether recursive watching is supported natively
@@ -173,7 +175,10 @@ public class DirectoryWatcher {
     this.listener = listener;
     this.watchService = watchService;
     this.isMac = watchService instanceof MacOSXListeningWatchService;
-    this.pathHashes = PathUtils.createHashCodeMap(paths, fileHasher);
+    this.directories = new ConcurrentHashMap<>();
+
+    // also pass directories so it can be initialised, without a second scan
+    this.pathHashes = PathUtils.createHashCodeMap(paths, directories, fileHasher);
     this.keyRoots = PathUtils.createKeyRootsMap();
     this.fileHasher = fileHasher;
     this.logger = logger;
@@ -236,7 +241,7 @@ public class DirectoryWatcher {
            * If a directory is created, and we're watching recursively, then register it and its sub-directories.
            */
           if (kind == OVERFLOW) {
-            boolean isDirectory = isDirectoryHash(pathHashes.get(childPath));
+            boolean isDirectory = isDirectoryHash(directories.get(childPath));
             onEvent(EventType.OVERFLOW, isDirectory, childPath, count, rootPath);
           } else if (eventPath == null) {
             throw new IllegalStateException("WatchService returned a null path for " + kind.name());
@@ -266,7 +271,7 @@ public class DirectoryWatcher {
              * It's important we don't discard the event in this case
              */
             HashCode existingHash = pathHashes.get(childPath);
-            boolean isDirectory = isDirectoryHash(existingHash);
+            boolean isDirectory = isDirectoryHash(directories.get(childPath));
 
             if (fileHasher == null) {
               onEvent(EventType.MODIFY, isDirectory, childPath, count, rootPath);
@@ -288,14 +293,14 @@ public class DirectoryWatcher {
           } else if (kind == ENTRY_DELETE) {
             // we cannot tell if this was a file or folder, but we can look at subpaths
             if (fileHasher == null) {
-              boolean isDirectory = isDirectoryHash(pathHashes.remove(childPath));
+              boolean isDirectory = isDirectoryHash(directories.remove(childPath));
               // hashing is disabled, so just notify on the path we got the event for
               onEvent(EventType.DELETE, isDirectory, childPath, count, rootPath);
             } else {
               // hashing is enabled, so we may know other paths that need to be deleted
               Set<Path> subtreePaths = PathUtils.subMap(pathHashes, childPath).keySet();
               for (Path path : subtreePaths) {
-                boolean isDirectory = isDirectoryHash(pathHashes.remove(path));
+                boolean isDirectory = isDirectoryHash(directories.remove(path));
                 onEvent(EventType.DELETE, isDirectory, path, count, rootPath);
               }
               // this will remove from the original map
@@ -387,6 +392,9 @@ public class DirectoryWatcher {
 
   private void notifyCreateEvent(Path path, int count, Path context, boolean isDirectory) throws IOException {
     if (fileHasher == null) {
+      if (isDirectory) {
+        directories.put(path, HashCode.empty());
+      }
       onEvent(EventType.CREATE, isDirectory, path, count, context);
     } else {
       HashCode newHash = PathUtils.hash(fileHasher, path);
@@ -410,6 +418,7 @@ public class DirectoryWatcher {
   }
 
   private boolean isDirectoryHash(HashCode hashCode) {
-    return hashCode != null && HashCode.EMPTY.equals(hashCode);
+    // It must be == as an empty file will be equal to byte[]
+    return hashCode != null && HashCode.EMPTY == hashCode;
   }
 }

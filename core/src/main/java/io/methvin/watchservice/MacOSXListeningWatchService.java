@@ -126,7 +126,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       if (file.startsWith(watchedPath)) return watchKey;
     }
 
-    final SortedMap<Path, HashCode> hashCodeMap = PathUtils.createHashCodeMap(file, fileHasher);
+    final SortedMap<Path, HashCode> hashCodeMap = PathUtils.createHashCodeMap(file, null, fileHasher);
     final Pointer[] values = {CFStringRef.toCFString(file.toString()).getPointer()};
     final CFArrayRef pathsToWatch =
         CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);

@@ -485,14 +485,14 @@ public class DirectoryWatcherOnDiskTest {
           DirectoryWatcher.builder()
                           .paths(Arrays.asList(new Path[] {d1}))
                           .listener(this.recorder)
-                          .fileHashing(true)
+                          .fileHashing(false)
                           .build();
     this.watcher.watchAsync();
 
     final Path f1 = Files.createTempFile(d1, "f1-", ".dat");
     Files.write(f1, new byte[] {counter++});
 
-    wait(3, 1);
+    wait(3, 2);
     assertEquals(DirectoryChangeEvent.EventType.CREATE, this.recorder.events.get(0).eventType());
     assertFalse(this.recorder.events.get(0).isDirectory());
 

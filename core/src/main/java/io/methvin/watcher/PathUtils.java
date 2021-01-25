@@ -48,23 +48,27 @@ public class PathUtils {
     return hashCodeMap.subMap(treeRoot, Paths.get(treeRoot.toString(), "" + Character.MAX_VALUE));
   }
 
-  public static SortedMap<Path, HashCode> createHashCodeMap(Path file, FileHasher fileHasher)
+  public static SortedMap<Path, HashCode> createHashCodeMap(Path file, Map<Path, HashCode> directories,  FileHasher fileHasher)
       throws IOException {
-    return createHashCodeMap(Collections.singletonList(file), fileHasher);
+    return createHashCodeMap(Collections.singletonList(file), directories, fileHasher);
   }
 
-  public static SortedMap<Path, HashCode> createHashCodeMap(List<Path> files, FileHasher fileHasher)
+  public static SortedMap<Path, HashCode> createHashCodeMap(List<Path> files, Map<Path, HashCode> directories, FileHasher fileHasher)
       throws IOException {
     SortedMap<Path, HashCode> lastModifiedMap = new ConcurrentSkipListMap<>();
-    if (fileHasher != null) {
       for (Path file : files) {
         for (Path child : recursiveListFiles(file)) {
-          HashCode hash = PathUtils.hash(fileHasher, child);
-          if (hash != null) {
-            lastModifiedMap.put(child, hash);
+          // directories is null when called from MacOSXListeningWatchService
+          if (directories != null && Files.isDirectory(child)) {
+            directories.put(child, HashCode.empty());
+          }
+          if (fileHasher != null) {
+            HashCode hash = PathUtils.hash(fileHasher, child);
+            if (hash != null) {
+              lastModifiedMap.put(child, hash);
+            }
           }
         }
-      }
     }
     return lastModifiedMap;
   }

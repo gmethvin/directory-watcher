@@ -20,7 +20,7 @@ import java.util.Formatter;
 /** A class representing the hash code of a file. */
 public class HashCode {
   public static final HashCode EMPTY = HashCode.fromBytes(new  byte[0]);
-  private final byte[] value;
+  private final byte[]         value;
 
   public static HashCode fromBytes(byte[] value) {
     return new HashCode(Arrays.copyOf(value, value.length));
