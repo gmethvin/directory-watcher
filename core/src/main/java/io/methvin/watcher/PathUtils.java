@@ -40,12 +40,8 @@ public class PathUtils {
     }
   }
 
-  public static Map<WatchKey, Path> createKeyRootsMap() {
-    return new ConcurrentHashMap<>();
-  }
-
-  public static <T> SortedMap<Path, T> subMap(SortedMap<Path, T> hashCodeMap, Path treeRoot) {
-    return hashCodeMap.subMap(treeRoot, Paths.get(treeRoot.toString(), "" + Character.MAX_VALUE));
+  public static <T> SortedMap<Path, T> subMap(SortedMap<Path, T> pathMap, Path treeRoot) {
+    return pathMap.subMap(treeRoot, Paths.get(treeRoot.toString(), "" + Character.MAX_VALUE));
   }
 
   public static SortedMap<Path, HashCode> createHashCodeMap(Path file, FileHasher fileHasher)
@@ -67,6 +63,29 @@ public class PathUtils {
       }
     }
     return lastModifiedMap;
+  }
+
+  public static void initWatcherState(
+      List<Path> roots, FileHasher fileHasher, Map<Path, HashCode> hashes, Set<Path> directories)
+      throws IOException {
+    for (Path root : roots) {
+      if (fileHasher == null) {
+        recursiveVisitFiles(root, directories::add, file -> {});
+      } else {
+        PathCallback addHash =
+            path -> {
+              HashCode hash = PathUtils.hash(fileHasher, path);
+              if (hash != null) hashes.put(path, hash);
+            };
+        recursiveVisitFiles(
+            root,
+            dir -> {
+              directories.add(dir);
+              addHash.call(dir);
+            },
+            addHash);
+      }
+    }
   }
 
   public static Set<Path> recursiveListFiles(Path file) throws IOException {
