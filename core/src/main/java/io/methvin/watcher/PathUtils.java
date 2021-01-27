@@ -13,10 +13,8 @@
  */
 package io.methvin.watcher;
 
+import io.methvin.watcher.hashing.FileHash;
 import io.methvin.watcher.hashing.FileHasher;
-import io.methvin.watcher.hashing.Hash;
-import io.methvin.watcher.hashing.ByteArrayHashCode;
-
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -25,10 +23,10 @@ import java.util.concurrent.ConcurrentSkipListMap;
 
 public class PathUtils {
 
-  public static Hash hash(FileHasher fileHasher, Path path) {
+  public static FileHash hash(FileHasher fileHasher, Path path) {
     try {
       if (Files.isDirectory(path)) {
-        return ByteArrayHashCode.empty();
+        return FileHash.directory();
       } else {
         if (!Files.exists(path)) {
           return null;
@@ -44,18 +42,18 @@ public class PathUtils {
     return pathMap.subMap(treeRoot, Paths.get(treeRoot.toString(), "" + Character.MAX_VALUE));
   }
 
-  public static SortedMap<Path, Hash> createHashCodeMap(Path file, FileHasher fileHasher)
+  public static SortedMap<Path, FileHash> createHashCodeMap(Path file, FileHasher fileHasher)
       throws IOException {
     return createHashCodeMap(Collections.singletonList(file), fileHasher);
   }
 
-  public static SortedMap<Path, Hash> createHashCodeMap(List<Path> files, FileHasher fileHasher)
+  public static SortedMap<Path, FileHash> createHashCodeMap(List<Path> files, FileHasher fileHasher)
       throws IOException {
-    SortedMap<Path, Hash> lastModifiedMap = new ConcurrentSkipListMap<>();
+    SortedMap<Path, FileHash> lastModifiedMap = new ConcurrentSkipListMap<>();
     if (fileHasher != null) {
       for (Path file : files) {
         for (Path child : recursiveListFiles(file)) {
-          Hash hash = PathUtils.hash(fileHasher, child);
+          FileHash hash = PathUtils.hash(fileHasher, child);
           if (hash != null) {
             lastModifiedMap.put(child, hash);
           }
@@ -66,7 +64,7 @@ public class PathUtils {
   }
 
   public static void initWatcherState(
-      List<Path> roots, FileHasher fileHasher, Map<Path, Hash> hashes, Set<Path> directories)
+      List<Path> roots, FileHasher fileHasher, Map<Path, FileHash> hashes, Set<Path> directories)
       throws IOException {
     for (Path root : roots) {
       if (fileHasher == null) {
@@ -74,7 +72,7 @@ public class PathUtils {
       } else {
         PathCallback addHash =
             path -> {
-              Hash hash = PathUtils.hash(fileHasher, path);
+              FileHash hash = PathUtils.hash(fileHasher, path);
               if (hash != null) hashes.put(path, hash);
             };
         recursiveVisitFiles(

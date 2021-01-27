@@ -13,22 +13,20 @@
  */
 package io.methvin.watchservice;
 
+import static java.nio.file.StandardWatchEventKinds.*;
+
 import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 import io.methvin.watcher.PathUtils;
+import io.methvin.watcher.hashing.FileHash;
 import io.methvin.watcher.hashing.FileHasher;
-import io.methvin.watcher.hashing.Hash;
-import io.methvin.watcher.hashing.ByteArrayHashCode;
 import io.methvin.watchservice.jna.*;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.WatchEvent;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static java.nio.file.StandardWatchEventKinds.*;
 
 /**
  * This class contains the bulk of my implementation of the Watch Service API. It hooks into
@@ -81,8 +79,8 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
         private final AtomicLong value = new AtomicLong();
 
         @Override
-        public Hash hash(Path path) throws IOException {
-          return ByteArrayHashCode.fromLong(value.incrementAndGet());
+        public FileHash hash(Path path) throws IOException {
+          return FileHash.fromLong(value.incrementAndGet());
         }
       };
 
@@ -125,8 +123,8 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       if (file.startsWith(watchedPath)) return watchKey;
     }
 
-    final SortedMap<Path, Hash> hashCodeMap = PathUtils.createHashCodeMap(file, fileHasher);
-    final Pointer[]             values      = {CFStringRef.toCFString(file.toString()).getPointer()};
+    final SortedMap<Path, FileHash> hashCodeMap = PathUtils.createHashCodeMap(file, fileHasher);
+    final Pointer[] values = {CFStringRef.toCFString(file.toString()).getPointer()};
     final CFArrayRef pathsToWatch =
         CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);
     final MacOSXListeningCallback callback =
@@ -214,7 +212,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
 
   private static class MacOSXListeningCallback implements CarbonAPI.FSEventStreamCallback {
     private final MacOSXWatchKey watchKey;
-    private final SortedMap<Path, Hash> hashCodeMap;
+    private final SortedMap<Path, FileHash> hashCodeMap;
     private final FileHasher fileHasher;
     private final Path realPath;
     private final Path absPath;
@@ -225,7 +223,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     private MacOSXListeningCallback(
         MacOSXWatchKey watchKey,
         FileHasher fileHasher,
-        SortedMap<Path, Hash> hashCodeMap,
+        SortedMap<Path, FileHash> hashCodeMap,
         Path absPath)
         throws IOException {
       this.watchKey = watchKey;
@@ -325,8 +323,8 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     private List<Path> findModifiedFiles(Set<Path> filesOnDisk) {
       List<Path> modifiedFileList = new ArrayList<Path>();
       for (Path file : filesOnDisk) {
-        Hash storedHashCode = hashCodeMap.get(file);
-        Hash newHashCode = PathUtils.hash(fileHasher, file);
+        FileHash storedHashCode = hashCodeMap.get(file);
+        FileHash newHashCode = PathUtils.hash(fileHasher, file);
         if (newHashCode != null && !newHashCode.equals(storedHashCode)) {
           modifiedFileList.add(file);
           hashCodeMap.put(file, newHashCode);
@@ -339,7 +337,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       List<Path> createdFileList = new ArrayList<Path>();
       for (Path file : filesOnDisk) {
         if (!hashCodeMap.containsKey(file)) {
-          Hash hashCode = PathUtils.hash(fileHasher, file);
+          FileHash hashCode = PathUtils.hash(fileHasher, file);
           if (hashCode != null) {
             createdFileList.add(file);
             hashCodeMap.put(file, hashCode);

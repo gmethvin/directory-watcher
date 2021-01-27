@@ -13,44 +13,22 @@
  */
 package io.methvin.watcher.hashing;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Formatter;
 
-/** A class representing the hash code of a file. */
-public class ByteArrayHashCode implements Hash {
+/** A class representing the hash code of a file as a byte array. */
+class ByteArrayFileHash implements FileHash {
   private final byte[] value;
 
-  public static final ByteArrayHashCode EMPTY = new ByteArrayHashCode(new byte[0]);
-
-  public static ByteArrayHashCode fromBytes(byte[] value) {
-    return new ByteArrayHashCode(Arrays.copyOf(value, value.length));
-  }
-
-  public static ByteArrayHashCode fromLong(long value) {
-    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-    buffer.putLong(value);
-    return new ByteArrayHashCode(buffer.array());
-  }
-
-  public static ByteArrayHashCode empty() {
-    return EMPTY;
-  }
-
-  ByteArrayHashCode(byte[] value) {
+  ByteArrayFileHash(byte[] value) {
     this.value = value;
-  }
-
-  byte[] value() {
-    return this.value;
   }
 
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    ByteArrayHashCode hashCode = (ByteArrayHashCode) o;
+    ByteArrayFileHash hashCode = (ByteArrayFileHash) o;
     return Arrays.equals(value, hashCode.value);
   }
 
@@ -62,5 +40,9 @@ public class ByteArrayHashCode implements Hash {
   @Override
   public String toString() {
     return Base64.getEncoder().encodeToString(value);
+  }
+
+  public byte[] asBytes() {
+    return Arrays.copyOf(value, value.length);
   }
 }

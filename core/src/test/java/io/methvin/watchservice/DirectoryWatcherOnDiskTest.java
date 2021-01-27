@@ -1,19 +1,16 @@
 package io.methvin.watchservice;
 
+import static junit.framework.TestCase.assertEquals;
+import static junit.framework.TestCase.assertTrue;
+import static org.awaitility.Awaitility.await;
+import static org.junit.Assert.*;
+
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.methvin.watcher.DirectoryChangeEvent;
 import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
+import io.methvin.watcher.hashing.FileHash;
 import io.methvin.watcher.hashing.FileHasher;
-import io.methvin.watcher.hashing.Hash;
-import io.methvin.watcher.hashing.ByteArrayHashCode;
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.Test;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -31,11 +28,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
-
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertTrue;
-import static org.awaitility.Awaitility.await;
-import static org.junit.Assert.*;
+import org.apache.commons.io.FileUtils;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.Before;
+import org.junit.Test;
 
 public class DirectoryWatcherOnDiskTest {
 
@@ -539,18 +537,18 @@ public class DirectoryWatcherOnDiskTest {
     Files.write(f1, new byte[] {counter++});
 
     this.watcher =
-          DirectoryWatcher.builder()
-                          .paths(Arrays.asList(new Path[] {d1}))
-                          .listener(this.recorder)
-                          .fileHashing(true)
-                          .build();
+        DirectoryWatcher.builder()
+            .paths(Arrays.asList(new Path[] {d1}))
+            .listener(this.recorder)
+            .fileHashing(true)
+            .build();
 
     this.watcher.watchAsync();
 
-    Map<Path, Hash> map = this.watcher.pathHashes();
-    assertEquals(ByteArrayHashCode.empty(), map.get(d1));
+    Map<Path, FileHash> map = this.watcher.pathHashes();
+    assertTrue(FileHash.DIRECTORY == map.get(d1));
 
-    Hash hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
+    FileHash hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
     assertEquals(hashCode1, map.get(f1));
 
     try {
@@ -569,11 +567,11 @@ public class DirectoryWatcherOnDiskTest {
     Files.createDirectory(d1);
 
     this.watcher =
-          DirectoryWatcher.builder()
-                          .paths(Arrays.asList(new Path[] {d1}))
-                          .listener(this.recorder)
-                          .fileHashing(true)
-                          .build();
+        DirectoryWatcher.builder()
+            .paths(Arrays.asList(new Path[] {d1}))
+            .listener(this.recorder)
+            .fileHashing(true)
+            .build();
 
     this.watcher.watchAsync();
 
@@ -581,7 +579,7 @@ public class DirectoryWatcherOnDiskTest {
     Files.write(f1, new byte[] {counter++});
     waitRecorderSize(3, 1);
 
-    Hash hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
+    FileHash hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
     assertNotSame(hashCode1, this.recorder.events.get(0).hash());
     assertEquals(hashCode1, this.recorder.events.get(0).hash());
 
@@ -589,7 +587,7 @@ public class DirectoryWatcherOnDiskTest {
     Files.write(f1, new byte[] {counter++});
     waitRecorderSize(3, 1);
 
-    Hash hashCode2 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
+    FileHash hashCode2 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
     assertNotEquals(hashCode2, hashCode1);
     assertNotSame(hashCode2, this.recorder.events.get(0).hash());
     assertEquals(hashCode2, this.recorder.events.get(0).hash());
@@ -598,13 +596,16 @@ public class DirectoryWatcherOnDiskTest {
   }
 
   private void waitRecorderSize(int atMost, int untilSize) {
-    await().atMost(atMost, TimeUnit.SECONDS)
-           .pollDelay(100, TimeUnit.MILLISECONDS)
-           .until(() -> this.recorder.events.size() == untilSize);
+    await()
+        .atMost(atMost, TimeUnit.SECONDS)
+        .pollDelay(100, TimeUnit.MILLISECONDS)
+        .until(() -> this.recorder.events.size() == untilSize);
   }
 
   private void waitFileSize(int atMost, int length) {
-    await().atMost(atMost, TimeUnit.SECONDS).until(() -> tmpDir.toFile().listFiles().length == length);
+    await()
+        .atMost(atMost, TimeUnit.SECONDS)
+        .until(() -> tmpDir.toFile().listFiles().length == length);
   }
 
   private void ensureStill() {
