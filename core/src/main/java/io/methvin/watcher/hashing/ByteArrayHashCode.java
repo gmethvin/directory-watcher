@@ -61,10 +61,6 @@ public class ByteArrayHashCode implements Hash {
 
   @Override
   public String toString() {
-    Formatter formatter = new Formatter();
-    for (byte b : value) {
-      formatter.format("%02x", b);
-    }
-    return formatter.toString();
+    return Base64.getEncoder().encodeToString(value);
   }
 }
