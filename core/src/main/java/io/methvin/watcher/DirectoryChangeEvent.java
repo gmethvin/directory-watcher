@@ -123,7 +123,7 @@ public final class DirectoryChangeEvent {
            + ", rootPath="
            + rootPath
            + ", hash="
-           + ((hash == null) ? "(null)" : Murmur3FAccessor.asString(hash)) // don't want the printout to be too long
+           + ((hash == null) ? "(null)" : hash) // don't want the printout to be too long
            + '}';
   }
 }
