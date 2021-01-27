@@ -1,12 +1,15 @@
 package io.methvin.watchservice;
 
 import io.methvin.watcher.ChangeSet;
+import io.methvin.watcher.ChangeSetEntry;
 import io.methvin.watcher.ChangeSetListener;
 import io.methvin.watcher.DirectoryChangeEvent;
 import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
+import io.methvin.watcher.hashing.FileHash;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -15,12 +18,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertTrue;
+import static org.junit.Assert.assertNotEquals;
 import static org.awaitility.Awaitility.await;
 
 public class ChangeSetTest {
@@ -127,7 +132,7 @@ public class ChangeSetTest {
   }
 
   @Test
-  public void normaliseModify() throws IOException {
+  public void normaliseModify() throws IOException, InterruptedException {
     // An entry that is logged as CREATED, stays CREATED for all updates, until the ChangeSet is
     // consumed.
     Path d1 = this.tmpDir.resolve("d1");
@@ -135,12 +140,19 @@ public class ChangeSetTest {
 
     final Path f1 = Files.createTempFile(d1, "f1-", ".dat");
     waitRecorderSize(3, 1);
+    FileHash hash1 = recorder.events.get(0).hash();
 
     Files.write(f1, new byte[] {counter++});
     waitRecorderSize(3, 2);
+    FileHash hash2 = recorder.events.get(1).hash();
 
     ChangeSet changeSet = listener.getChangeSet().get(d1);
     assertEquals(1, changeSet.created().size());
+
+    // Make sure the hash was also updated
+    ArrayList<ChangeSetEntry> list = new ArrayList<>(changeSet.created());
+    assertNotEquals(hash1, list.get(0).hash());
+    assertEquals(hash2, list.get(0).hash());
 
     // This performance two writes, and thus two modify events
     Files.write(f1, new byte[] {counter++});

@@ -50,6 +50,8 @@ public class ChangeSetListener implements DirectoryChangeListener {
           if (!changeSet.createdMap().containsKey(path)) {
             // Only add the MODIFY if a CREATE does not already exist.
             changeSet.modifiedMap().put(path, entry);
+          } else {
+            changeSet.createdMap().put(path, entry);
           }
           break;
         case DELETE:
