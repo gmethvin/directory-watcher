@@ -187,6 +187,35 @@ public class ChangeSetTest {
   }
 
   @Test
+  public void deletedThenCreated() throws IOException {
+    // An entry that is deleted and created in same ChangeSet shoud be a modified one.
+    Path d1 = this.tmpDir.resolve("d1");
+    init(d1);
+
+    final Path f1 = Files.createTempFile(d1, "f1-", ".dat");
+    waitRecorderSize(3, 1);
+
+    Files.write(f1, new byte[] {counter++});
+    waitRecorderSize(3, 2);
+
+    ChangeSet changeSet = listener.getChangeSet().get(d1);
+    assertEquals(1, changeSet.created().size());
+
+    Files.deleteIfExists(f1);
+    waitRecorderSize(3, 3);
+
+    final Path f1v2 = Files.createFile(f1);
+    waitRecorderSize(3, 4);
+
+    changeSet = listener.getChangeSet().get(d1);
+    assertEquals(0, changeSet.created().size());
+    assertEquals(1, changeSet.modified().size());
+    assertEquals(0, changeSet.deleted().size());
+
+    watcher.close();
+  }
+
+  @Test
   public void multipleRootPaths() throws IOException, InterruptedException {
     Path d1 = this.tmpDir.resolve("d1");
     Path d2 = this.tmpDir.resolve("d2");

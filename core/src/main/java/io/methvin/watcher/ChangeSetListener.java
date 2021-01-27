@@ -19,13 +19,13 @@ public class ChangeSetListener implements DirectoryChangeListener {
   @Override
   public void onEvent(DirectoryChangeEvent event) {
     Path rootPath = event.rootPath();
-    Path path = event.path();
+    Path path     = event.path();
 
     synchronized (lock) {
       // Maintain a ChangeSet per rootPath
-      ChangeSet changeSet = changeSets.get(rootPath);
+      ChangeSetImpl changeSet = (ChangeSetImpl) changeSets.get(rootPath);
       if (changeSet == null) {
-        changeSet = new ChangeSet();
+        changeSet = new ChangeSetImpl();
         changeSets.put(rootPath, changeSet);
       }
 
@@ -37,28 +37,30 @@ public class ChangeSetListener implements DirectoryChangeListener {
       switch (event.eventType()) {
         case CREATE:
           // Remove any MODIFY, quicker to just remove than check and remove.
-          changeSet.modified().remove(entry);
+          changeSet.modifiedMap().remove(path);
 
-          // Only add if DELETE does not already exist.
-          if (!changeSet.deleted().remove(entry)) {
-            changeSet.created().add(entry);
+          // Only add to CREATE if DELETE does not already exist, else it's MODIFED.
+          if (changeSet.deletedMap().remove(path) == null) {
+            changeSet.createdMap().put(path, entry);
+          } else {
+            changeSet.modifiedMap().put(path, entry);
           }
           break;
         case MODIFY:
-          if (!changeSet.deleted().contains(entry) && !changeSet.created().contains(entry)) {
-            // Only add the MODIFY if a CREATE or DELETE does not already exist.
-            changeSet.modified().add(entry);
+          if (!changeSet.createdMap().containsKey(path)) {
+            // Only add the MODIFY if a CREATE does not already exist.
+            changeSet.modifiedMap().put(path, entry);
           }
           break;
         case DELETE:
           // Do not add, if file was CREATED and DELETED, before consumption
-          boolean created = changeSet.created().remove(entry);
+          boolean created = changeSet.createdMap().remove(path) != null;
           if (!created) {
-            changeSet.modified().remove(entry);
+            changeSet.modifiedMap().remove(path);
           }
 
           if (!created) {
-            changeSet.deleted().add(entry);
+            changeSet.deletedMap().put(path, entry);
           }
           break;
         case OVERFLOW:
