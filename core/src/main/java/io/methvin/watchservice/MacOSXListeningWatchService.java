@@ -81,7 +81,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
         private final AtomicLong value = new AtomicLong();
 
         @Override
-        public ByteArrayHashCode hash(Path path) throws IOException {
+        public Hash hash(Path path) throws IOException {
           return ByteArrayHashCode.fromLong(value.incrementAndGet());
         }
       };

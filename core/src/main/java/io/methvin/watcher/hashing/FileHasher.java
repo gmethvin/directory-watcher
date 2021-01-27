@@ -60,5 +60,5 @@ public interface FileHasher {
         return new ByteArrayHashCode(buffer.array());
       };
 
-  ByteArrayHashCode hash(Path path) throws IOException;
+  Hash hash(Path path) throws IOException;
 }

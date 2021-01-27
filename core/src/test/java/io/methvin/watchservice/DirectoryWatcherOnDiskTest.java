@@ -550,7 +550,7 @@ public class DirectoryWatcherOnDiskTest {
     Map<Path, Hash> map = this.watcher.pathHashes();
     assertEquals(ByteArrayHashCode.empty(), map.get(d1));
 
-    ByteArrayHashCode hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
+    Hash hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
     assertEquals(hashCode1, map.get(f1));
 
     try {
@@ -581,7 +581,7 @@ public class DirectoryWatcherOnDiskTest {
     Files.write(f1, new byte[] {counter++});
     waitRecorderSize(3, 1);
 
-    ByteArrayHashCode hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
+    Hash hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
     assertNotSame(hashCode1, this.recorder.events.get(0).hash());
     assertEquals(hashCode1, this.recorder.events.get(0).hash());
 
@@ -589,7 +589,7 @@ public class DirectoryWatcherOnDiskTest {
     Files.write(f1, new byte[] {counter++});
     waitRecorderSize(3, 1);
 
-    ByteArrayHashCode hashCode2 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
+    Hash hashCode2 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
     assertNotEquals(hashCode2, hashCode1);
     assertNotSame(hashCode2, this.recorder.events.get(0).hash());
     assertEquals(hashCode2, this.recorder.events.get(0).hash());
