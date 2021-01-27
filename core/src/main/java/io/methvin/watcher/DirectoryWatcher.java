@@ -403,9 +403,7 @@ public class DirectoryWatcher {
   }
 
   private void notifyCreateEvent(boolean isDirectory, Path path, int count, Path rootPath) throws IOException {
-    if (fileHasher == null) {
-      onEvent(EventType.CREATE, isDirectory, path, count, rootPath);
-    } else {
+    if (fileHasher != null) {
       Hash newHash = PathUtils.hash(fileHasher, path);
       if (newHash == null) {
         // Hashing could fail for locked files on Windows.
@@ -424,7 +422,6 @@ public class DirectoryWatcher {
         return;
       }
     }
-
     if (isDirectory) {
       directories.add(path);
     }
