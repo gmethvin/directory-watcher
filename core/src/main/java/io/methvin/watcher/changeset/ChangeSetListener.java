@@ -1,5 +1,7 @@
-package io.methvin.watcher;
+package io.methvin.watcher.changeset;
 
+import io.methvin.watcher.DirectoryChangeEvent;
+import io.methvin.watcher.DirectoryChangeListener;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;

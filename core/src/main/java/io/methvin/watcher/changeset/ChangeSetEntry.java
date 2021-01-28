@@ -1,4 +1,4 @@
-package io.methvin.watcher;
+package io.methvin.watcher.changeset;
 
 import io.methvin.watcher.hashing.FileHash;
 import java.nio.file.Path;

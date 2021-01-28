@@ -1,9 +1,12 @@
-package io.methvin.watcher;
+package io.methvin.watcher.changeset;
 
 import static junit.framework.TestCase.assertEquals;
 import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.assertNotEquals;
 
+import io.methvin.watcher.DirectoryChangeEvent;
+import io.methvin.watcher.DirectoryChangeListener;
+import io.methvin.watcher.DirectoryWatcher;
 import io.methvin.watcher.hashing.FileHash;
 import java.io.IOException;
 import java.nio.file.Files;
