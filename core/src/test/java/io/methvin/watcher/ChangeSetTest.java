@@ -1,32 +1,22 @@
-package io.methvin.watchservice;
+package io.methvin.watcher;
 
-import io.methvin.watcher.ChangeSet;
-import io.methvin.watcher.ChangeSetEntry;
-import io.methvin.watcher.ChangeSetListener;
-import io.methvin.watcher.DirectoryChangeEvent;
-import io.methvin.watcher.DirectoryChangeListener;
-import io.methvin.watcher.DirectoryWatcher;
+import static junit.framework.TestCase.assertEquals;
+import static org.awaitility.Awaitility.await;
+import static org.junit.Assert.assertNotEquals;
+
 import io.methvin.watcher.hashing.FileHash;
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.assertNotEquals;
-import static org.awaitility.Awaitility.await;
+import org.apache.commons.io.FileUtils;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 public class ChangeSetTest {
 

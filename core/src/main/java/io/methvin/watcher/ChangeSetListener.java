@@ -3,67 +3,41 @@ package io.methvin.watcher;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
-public class ChangeSetListener implements DirectoryChangeListener {
+public final class ChangeSetListener implements DirectoryChangeListener {
 
-  private Map<Path, ChangeSet> changeSets;
+  private Map<Path, ChangeSetBuilder> changeBuilders = new HashMap<>();
 
-  // Lock is used as a simple Exchange pattern, so the UserInput thread can safely consume
-  // normalisedChangedSet
-  private Object lock = new Object() {};
+  private final Object lock = new Object() {};
 
-  public ChangeSetListener() {
-    this.changeSets = new HashMap<>();
-  }
+  public ChangeSetListener() {}
 
   @Override
   public void onEvent(DirectoryChangeEvent event) {
     Path rootPath = event.rootPath();
-    Path path     = event.path();
+    Path path = event.path();
 
     synchronized (lock) {
       // Maintain a ChangeSet per rootPath
-      ChangeSetImpl changeSet = (ChangeSetImpl) changeSets.get(rootPath);
-      if (changeSet == null) {
-        changeSet = new ChangeSetImpl();
-        changeSets.put(rootPath, changeSet);
+      ChangeSetBuilder builder = changeBuilders.get(rootPath);
+      if (builder == null) {
+        builder = new ChangeSetBuilder();
+        changeBuilders.put(rootPath, builder);
       }
 
       ChangeSetEntry entry =
           new ChangeSetEntry(path, event.isDirectory(), event.hash(), event.rootPath());
 
-      // This logic assumes events might come out of order, i.e. a delete before a create, and
-      // attempts to handle this gracefully.
       switch (event.eventType()) {
         case CREATE:
-          // Remove any MODIFY, quicker to just remove than check and remove.
-          changeSet.modifiedMap().remove(path);
-
-          // Only add to CREATE if DELETE does not already exist, else it's MODIFED.
-          if (changeSet.deletedMap().remove(path) == null) {
-            changeSet.createdMap().put(path, entry);
-          } else {
-            changeSet.modifiedMap().put(path, entry);
-          }
+          builder.addCreated(entry);
           break;
         case MODIFY:
-          if (!changeSet.createdMap().containsKey(path)) {
-            // Only add the MODIFY if a CREATE does not already exist.
-            changeSet.modifiedMap().put(path, entry);
-          } else {
-            changeSet.createdMap().put(path, entry);
-          }
+          builder.addModified(entry);
           break;
         case DELETE:
-          // Do not add, if file was CREATED and DELETED, before consumption
-          boolean created = changeSet.createdMap().remove(path) != null;
-          if (!created) {
-            changeSet.modifiedMap().remove(path);
-          }
-
-          if (!created) {
-            changeSet.deletedMap().put(path, entry);
-          }
+          builder.addDeleted(entry);
           break;
         case OVERFLOW:
           throw new IllegalStateException("OVERFLOW not yet handled");
@@ -72,11 +46,12 @@ public class ChangeSetListener implements DirectoryChangeListener {
   }
 
   public Map<Path, ChangeSet> getChangeSet() {
-    Map<Path, ChangeSet> returnMap;
+    Map<Path, ChangeSetBuilder> returnBuilders;
     synchronized (lock) {
-      returnMap = changeSets;
-      changeSets = new HashMap<>();
+      returnBuilders = changeBuilders;
+      changeBuilders = new HashMap<>();
     }
-    return returnMap;
+    return returnBuilders.entrySet().stream()
+        .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().toChangeSet()));
   }
 }

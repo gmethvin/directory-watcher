@@ -1,4 +1,4 @@
-package io.methvin.watchservice;
+package io.methvin.watcher;
 
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertTrue;
@@ -6,9 +6,6 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.*;
 
 import com.google.common.util.concurrent.UncheckedExecutionException;
-import io.methvin.watcher.DirectoryChangeEvent;
-import io.methvin.watcher.DirectoryChangeListener;
-import io.methvin.watcher.DirectoryWatcher;
 import io.methvin.watcher.hashing.FileHash;
 import io.methvin.watcher.hashing.FileHasher;
 import java.io.File;

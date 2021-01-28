@@ -1,11 +1,11 @@
 package io.methvin.watcher;
 
-import java.util.Collection;
+import java.util.Set;
 
 public interface ChangeSet {
-   Collection<ChangeSetEntry> created();
+  Set<ChangeSetEntry> created();
 
-   Collection<ChangeSetEntry> modified();
+  Set<ChangeSetEntry> modified();
 
-   Collection<ChangeSetEntry> deleted();
+  Set<ChangeSetEntry> deleted();
 }

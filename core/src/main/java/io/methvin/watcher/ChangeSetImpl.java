@@ -1,71 +1,65 @@
 package io.methvin.watcher;
 
-import java.nio.file.Path;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Set;
 
-public class ChangeSetImpl implements ChangeSet {
+final class ChangeSetImpl implements ChangeSet {
 
-   private Map<Path, ChangeSetEntry> created  = new HashMap<>();
-   private Map<Path, ChangeSetEntry> modified = new HashMap<>();
-   private Map<Path, ChangeSetEntry> deleted  = new HashMap<>();
+  private final Set<ChangeSetEntry> created;
+  private final Set<ChangeSetEntry> modified;
+  private final Set<ChangeSetEntry> deleted;
 
-   @Override public Collection<ChangeSetEntry> created() {
-      return created.values();
-   }
+  ChangeSetImpl(
+      Set<ChangeSetEntry> created, Set<ChangeSetEntry> modified, Set<ChangeSetEntry> deleted) {
+    this.created = created;
+    this.modified = modified;
+    this.deleted = deleted;
+  }
 
-   @Override public Collection<ChangeSetEntry> modified() {
-      return modified.values();
-   }
+  public final Set<ChangeSetEntry> created() {
+    return created;
+  }
 
-   @Override public Collection<ChangeSetEntry> deleted() {
-      return deleted.values();
-   }
+  public final Set<ChangeSetEntry> modified() {
+    return modified;
+  }
 
-   public Map<Path, ChangeSetEntry> createdMap() {
-      return created;
-   }
+  public final Set<ChangeSetEntry> deleted() {
+    return deleted;
+  }
 
-   public Map<Path, ChangeSetEntry> modifiedMap() {
-      return modified;
-   }
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
-   public Map<Path, ChangeSetEntry> deletedMap() {
-      return deleted;
-   }
+    ChangeSetImpl changeSet = (ChangeSetImpl) o;
 
-   @Override public boolean equals(Object o) {
-      if (this == o) {
-         return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-         return false;
-      }
+    return created.equals(changeSet.created)
+        && modified.equals(changeSet.modified)
+        && deleted.equals(changeSet.deleted);
+  }
 
-      ChangeSetImpl changeSet = (ChangeSetImpl) o;
+  @Override
+  public int hashCode() {
+    int result = created.hashCode();
+    result = 31 * result + modified.hashCode();
+    result = 31 * result + deleted.hashCode();
+    return result;
+  }
 
-      if (!created.equals(changeSet.created)) {
-         return false;
-      }
-      if (!modified.equals(changeSet.modified)) {
-         return false;
-      }
-      return deleted.equals(changeSet.deleted);
-   }
-
-   @Override public int hashCode() {
-      int result = created.hashCode();
-      result = 31 * result + modified.hashCode();
-      result = 31 * result + deleted.hashCode();
-      return result;
-   }
-
-   @Override public String toString() {
-      return "ChangeSet{" +
-             "created=" + created +
-             ", modified=" + modified +
-             ", deleted=" + deleted +
-             '}';
-   }
+  @Override
+  public String toString() {
+    return "ChangeSet{"
+        + "created="
+        + created
+        + ", modified="
+        + modified
+        + ", deleted="
+        + deleted
+        + '}';
+  }
 }

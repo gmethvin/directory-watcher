@@ -1,14 +1,15 @@
 package io.methvin.watcher;
 
-import java.nio.file.Path;
-
 import io.methvin.watcher.hashing.FileHash;
+import java.nio.file.Path;
+import java.util.Objects;
 
 public class ChangeSetEntry {
-  private final Path     path;
-  private final boolean  isDirectory;
+
+  private final Path path;
+  private final boolean isDirectory;
   private final FileHash hash;
-  private final Path     rootPath;
+  private final Path rootPath;
 
   public ChangeSetEntry(Path path, boolean isDirectory, FileHash hash, Path rootPath) {
     this.path = path;
@@ -21,7 +22,7 @@ public class ChangeSetEntry {
     return path;
   }
 
-  public boolean directory() {
+  public boolean isDirectory() {
     return isDirectory;
   }
 
@@ -44,24 +45,14 @@ public class ChangeSetEntry {
 
     ChangeSetEntry that = (ChangeSetEntry) o;
 
-    if (isDirectory != that.isDirectory) {
-      return false;
-    }
-    if (!path.equals(that.path)) {
-      return false;
-    }
-    if (!hash.equals(that.hash)) {
-      return false;
-    }
-    return rootPath.equals(that.rootPath);
+    return isDirectory == that.isDirectory
+        && path.equals(that.path)
+        && hash.equals(that.hash)
+        && rootPath.equals(that.rootPath);
   }
 
   @Override
   public int hashCode() {
-    int result = path.hashCode();
-    result = 31 * result + (isDirectory ? 1 : 0);
-    result = 31 * result + rootPath.hashCode();
-    result = 31 * result + hash.hashCode();
-    return result;
+    return Objects.hash(path, isDirectory, rootPath, hash);
   }
 }

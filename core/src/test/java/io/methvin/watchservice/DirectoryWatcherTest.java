@@ -1,5 +1,8 @@
 package io.methvin.watchservice;
 
+import static java.nio.file.StandardWatchEventKinds.*;
+import static org.junit.Assert.*;
+
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
@@ -8,10 +11,6 @@ import io.methvin.watcher.DirectoryChangeListener;
 import io.methvin.watcher.DirectoryWatcher;
 import io.methvin.watcher.hashing.FileHasher;
 import io.methvin.watchservice.FileSystem.FileSystemAction;
-import org.codehaus.plexus.util.FileUtils;
-import org.junit.Assume;
-import org.junit.Test;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
@@ -19,9 +18,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-
-import static java.nio.file.StandardWatchEventKinds.*;
-import static org.junit.Assert.*;
+import org.codehaus.plexus.util.FileUtils;
+import org.junit.Assume;
+import org.junit.Test;
 
 public class DirectoryWatcherTest {
 
