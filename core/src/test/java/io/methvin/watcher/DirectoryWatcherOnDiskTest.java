@@ -492,14 +492,14 @@ public class DirectoryWatcherOnDiskTest {
     final Path f1 = Files.createTempFile(d1, "f1-", ".dat");
     Files.write(f1, new byte[] {counter++});
 
-    waitRecorderSize(3, 1);
+    waitRecorderSizeAtLeast(3, 1);
     assertEquals(DirectoryChangeEvent.EventType.CREATE, this.recorder.events.get(0).eventType());
     assertFalse(this.recorder.events.get(0).isDirectory());
 
     this.recorder.events.clear();
     Files.write(f1, new byte[] {counter++});
 
-    waitRecorderSize(3, 1);
+    waitRecorderSizeAtLeast(3, 1);
     assertEquals(DirectoryChangeEvent.EventType.MODIFY, this.recorder.events.get(0).eventType());
     assertFalse(this.recorder.events.get(0).isDirectory());
 
@@ -507,16 +507,16 @@ public class DirectoryWatcherOnDiskTest {
     Path d2 = d1.resolve("d2");
     Files.createDirectory(d2);
 
-    waitRecorderSize(3, 1);
+    waitRecorderSizeAtLeast(3, 1);
     assertEquals(DirectoryChangeEvent.EventType.CREATE, this.recorder.events.get(0).eventType());
     assertTrue(this.recorder.events.get(0).isDirectory());
 
     this.recorder.events.clear();
     Files.deleteIfExists(f1);
-    waitRecorderSize(3, 1);
+    waitRecorderSizeAtLeast(3, 1);
     Files.deleteIfExists(d2);
 
-    waitRecorderSize(3, 2);
+    waitRecorderSizeAtLeast(3, 2);
 
     assertEquals(DirectoryChangeEvent.EventType.DELETE, this.recorder.events.get(0).eventType());
     assertFalse(this.recorder.events.get(0).isDirectory());
@@ -578,7 +578,7 @@ public class DirectoryWatcherOnDiskTest {
 
     final Path f1 = Files.createTempFile(d1, "f1-", ".dat");
     Files.write(f1, new byte[] {counter++});
-    waitRecorderSize(3, 1);
+    waitRecorderSizeAtLeast(3, 1);
 
     FileHash hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
     assertNotSame(hashCode1, this.recorder.events.get(0).hash());
@@ -586,7 +586,7 @@ public class DirectoryWatcherOnDiskTest {
 
     this.recorder.events.clear();
     Files.write(f1, new byte[] {counter++});
-    waitRecorderSize(3, 1);
+    waitRecorderSizeAtLeast(3, 1);
 
     FileHash hashCode2 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
     assertNotEquals(hashCode2, hashCode1);
@@ -594,6 +594,13 @@ public class DirectoryWatcherOnDiskTest {
     assertEquals(hashCode2, this.recorder.events.get(0).hash());
 
     this.watcher.close();
+  }
+
+  private void waitRecorderSizeAtLeast(int atMost, int untilSize) {
+    await()
+        .atMost(atMost, TimeUnit.SECONDS)
+        .pollDelay(100, TimeUnit.MILLISECONDS)
+        .until(() -> this.recorder.events.size() >= untilSize);
   }
 
   private void waitRecorderSize(int atMost, int untilSize) {
