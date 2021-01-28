@@ -487,6 +487,8 @@ public class DirectoryWatcherOnDiskTest {
             .build();
     this.watcher.watchAsync();
 
+    ensureStill();
+
     final Path f1 = Files.createTempFile(d1, "f1-", ".dat");
     Files.write(f1, new byte[] {counter++});
 
@@ -571,6 +573,8 @@ public class DirectoryWatcherOnDiskTest {
             .build();
 
     this.watcher.watchAsync();
+
+    ensureStill();
 
     final Path f1 = Files.createTempFile(d1, "f1-", ".dat");
     Files.write(f1, new byte[] {counter++});
