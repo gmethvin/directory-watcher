@@ -28,8 +28,8 @@ class ByteArrayFileHash implements FileHash {
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    ByteArrayFileHash hashCode = (ByteArrayFileHash) o;
-    return Arrays.equals(value, hashCode.value);
+    ByteArrayFileHash hash = (ByteArrayFileHash) o;
+    return Arrays.equals(value, hash.value);
   }
 
   @Override

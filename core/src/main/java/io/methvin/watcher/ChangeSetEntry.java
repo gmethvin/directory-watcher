@@ -4,14 +4,14 @@ import io.methvin.watcher.hashing.FileHash;
 import java.nio.file.Path;
 import java.util.Objects;
 
-public class ChangeSetEntry {
+public final class ChangeSetEntry {
 
   private final Path path;
   private final boolean isDirectory;
   private final FileHash hash;
   private final Path rootPath;
 
-  public ChangeSetEntry(Path path, boolean isDirectory, FileHash hash, Path rootPath) {
+  ChangeSetEntry(Path path, boolean isDirectory, FileHash hash, Path rootPath) {
     this.path = path;
     this.isDirectory = isDirectory;
     this.hash = hash;

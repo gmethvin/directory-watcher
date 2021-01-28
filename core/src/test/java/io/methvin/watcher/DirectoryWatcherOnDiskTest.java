@@ -580,18 +580,22 @@ public class DirectoryWatcherOnDiskTest {
     Files.write(f1, new byte[] {counter++});
     waitRecorderSizeAtLeast(3, 1);
 
+    List<DirectoryChangeEvent> events = this.recorder.events;
+
     FileHash hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
-    assertNotSame(hashCode1, this.recorder.events.get(0).hash());
-    assertEquals(hashCode1, this.recorder.events.get(0).hash());
+    FileHash recordedHash1 = events.get(events.size() - 1).hash();
+    assertNotSame(hashCode1, recordedHash1);
+    assertEquals(hashCode1, recordedHash1);
 
     this.recorder.events.clear();
     Files.write(f1, new byte[] {counter++});
     waitRecorderSizeAtLeast(3, 1);
 
     FileHash hashCode2 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
+    FileHash recordedHash2 = events.get(events.size() - 1).hash();
     assertNotEquals(hashCode2, hashCode1);
-    assertNotSame(hashCode2, this.recorder.events.get(0).hash());
-    assertEquals(hashCode2, this.recorder.events.get(0).hash());
+    assertNotSame(hashCode2, recordedHash2);
+    assertEquals(hashCode2, recordedHash2);
 
     this.watcher.close();
   }
