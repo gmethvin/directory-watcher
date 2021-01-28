@@ -11,7 +11,6 @@ import java.nio.file.WatchEvent;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-
 import org.codehaus.plexus.util.FileUtils;
 
 public class FileSystem {

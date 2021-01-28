@@ -13,6 +13,7 @@
  */
 package io.methvin.watcher;
 
+import io.methvin.watcher.hashing.FileHash;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
@@ -45,18 +46,25 @@ public final class DirectoryChangeEvent {
   }
 
   private final EventType eventType;
+  private final boolean isDirectory;
   private final Path path;
+  private final FileHash hash;
   private final int count;
   private final Path rootPath;
-  private final boolean isDirectory;
 
   public DirectoryChangeEvent(
-      EventType eventType, Path path, int count, Path rootPath, boolean isDirectory) {
+      EventType eventType,
+      boolean isDirectory,
+      Path path,
+      FileHash hash,
+      int count,
+      Path rootPath) {
     this.eventType = eventType;
+    this.isDirectory = isDirectory;
+    this.hash = hash;
     this.path = path;
     this.count = count;
     this.rootPath = rootPath;
-    this.isDirectory = isDirectory;
   }
 
   public EventType eventType() {
@@ -79,6 +87,10 @@ public final class DirectoryChangeEvent {
     return isDirectory;
   }
 
+  public FileHash hash() {
+    return hash;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -92,14 +104,15 @@ public final class DirectoryChangeEvent {
 
     return count == that.count
         && eventType == that.eventType
+        && isDirectory == that.isDirectory
         && Objects.equals(path, that.path)
         && Objects.equals(rootPath, that.rootPath)
-        && Objects.equals(isDirectory, that.isDirectory);
+        && Objects.equals(hash, that.hash);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(eventType, path, count, rootPath, isDirectory);
+    return Objects.hash(eventType, isDirectory, path, count, rootPath, hash);
   }
 
   @Override
@@ -107,14 +120,16 @@ public final class DirectoryChangeEvent {
     return "DirectoryChangeEvent{"
         + "eventType="
         + eventType
+        + ", isDirectory="
+        + isDirectory
         + ", path="
         + path
         + ", count="
         + count
         + ", rootPath="
         + rootPath
-        + ", isDirectory="
-        + isDirectory
+        + ", hash="
+        + ((hash == null) ? "(null)" : hash) // don't want the printout to be too long
         + '}';
   }
 }

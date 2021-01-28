@@ -13,29 +13,14 @@
  */
 package io.methvin.watcher.hashing;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Formatter;
+import java.util.Base64;
 
-/** A class representing the hash code of a file. */
-public class HashCode {
+/** A class representing the hash code of a file as a byte array. */
+class ByteArrayFileHash implements FileHash {
   private final byte[] value;
 
-  public static HashCode fromBytes(byte[] value) {
-    return new HashCode(Arrays.copyOf(value, value.length));
-  }
-
-  public static HashCode fromLong(long value) {
-    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-    buffer.putLong(value);
-    return new HashCode(buffer.array());
-  }
-
-  public static HashCode empty() {
-    return new HashCode(new byte[0]);
-  }
-
-  HashCode(byte[] value) {
+  ByteArrayFileHash(byte[] value) {
     this.value = value;
   }
 
@@ -43,8 +28,8 @@ public class HashCode {
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    HashCode hashCode = (HashCode) o;
-    return Arrays.equals(value, hashCode.value);
+    ByteArrayFileHash hash = (ByteArrayFileHash) o;
+    return Arrays.equals(value, hash.value);
   }
 
   @Override
@@ -54,10 +39,10 @@ public class HashCode {
 
   @Override
   public String toString() {
-    Formatter formatter = new Formatter();
-    for (byte b : value) {
-      formatter.format("%02x", b);
-    }
-    return formatter.toString();
+    return Base64.getEncoder().encodeToString(value);
+  }
+
+  public byte[] asBytes() {
+    return Arrays.copyOf(value, value.length);
   }
 }

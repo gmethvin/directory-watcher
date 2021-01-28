@@ -14,15 +14,15 @@
 
 package io.methvin.watcher;
 
+import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
+import static java.nio.file.StandardWatchEventKinds.*;
+
 import com.sun.nio.file.ExtendedWatchEventModifier;
 import io.methvin.watcher.DirectoryChangeEvent.EventType;
+import io.methvin.watcher.hashing.FileHash;
 import io.methvin.watcher.hashing.FileHasher;
-import io.methvin.watcher.hashing.HashCode;
 import io.methvin.watchservice.MacOSXListeningWatchService;
 import io.methvin.watchservice.WatchablePath;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.*;
@@ -37,9 +37,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
-
-import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
-import static java.nio.file.StandardWatchEventKinds.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DirectoryWatcher {
 
@@ -160,7 +159,7 @@ public class DirectoryWatcher {
   private final Map<Path, Path> registeredPathToRootPath;
   private final boolean isMac;
   private final DirectoryChangeListener listener;
-  private final SortedMap<Path, HashCode> pathHashes;
+  private final SortedMap<Path, FileHash> pathHashes;
   private final Set<Path> directories;
   private final Map<WatchKey, Path> keyRoots;
 
@@ -216,6 +215,10 @@ public class DirectoryWatcher {
         executor);
   }
 
+  public Map<Path, FileHash> pathHashes() {
+    return Collections.unmodifiableMap(pathHashes);
+  }
+
   /**
    * Watch the directories. Block until either the listener stops watching or the DirectoryWatcher
    * is closed.
@@ -249,7 +252,7 @@ public class DirectoryWatcher {
            * and its sub-directories.
            */
           if (kind == OVERFLOW) {
-            onEvent(EventType.OVERFLOW, childPath, count, rootPath, false);
+            onEvent(EventType.OVERFLOW, false, childPath, count, rootPath);
           } else if (eventPath == null) {
             throw new IllegalStateException("WatchService returned a null path for " + kind.name());
           } else if (kind == ENTRY_CREATE) {
@@ -266,31 +269,32 @@ public class DirectoryWatcher {
               if (!isMac) {
                 PathUtils.recursiveVisitFiles(
                     childPath,
-                    dir -> notifyCreateEvent(dir, count, rootPath, true),
-                    file -> notifyCreateEvent(file, count, rootPath, false));
+                    dir -> notifyCreateEvent(true, dir, count, rootPath),
+                    file -> notifyCreateEvent(false, file, count, rootPath));
               }
             }
-            notifyCreateEvent(childPath, count, rootPath, isDirectory);
+            notifyCreateEvent(isDirectory, childPath, count, rootPath);
           } else if (kind == ENTRY_MODIFY) {
             boolean isDirectory = directories.contains(childPath);
+
             if (fileHasher == null) {
-              onEvent(EventType.MODIFY, childPath, count, rootPath, isDirectory);
+              onEvent(EventType.MODIFY, isDirectory, childPath, count, rootPath);
             } else {
               /*
                * Note that existingHash may be null due to the file being created before we
                * start listening It's important we don't discard the event in this case
                */
-              HashCode existingHash = pathHashes.get(childPath);
+              FileHash existingHash = pathHashes.get(childPath);
 
               /*
                * newHash can be null when using File#delete() on windows - it generates MODIFY
                * and DELETE in succession. In this case the MODIFY event can be safely ignored
                */
-              HashCode newHash = PathUtils.hash(fileHasher, childPath);
+              FileHash newHash = PathUtils.hash(fileHasher, childPath);
 
               if (newHash != null && !newHash.equals(existingHash)) {
                 pathHashes.put(childPath, newHash);
-                onEvent(EventType.MODIFY, childPath, count, rootPath, isDirectory);
+                onEvent(EventType.MODIFY, isDirectory, childPath, count, rootPath);
               } else if (newHash == null) {
                 logger.debug(
                     "Failed to hash modified file [{}]. It may have been deleted.", childPath);
@@ -300,13 +304,13 @@ public class DirectoryWatcher {
             if (fileHasher == null) {
               boolean isDirectory = directories.remove(childPath);
               // hashing is disabled, so just notify on the path we got the event for
-              onEvent(EventType.DELETE, childPath, count, rootPath, isDirectory);
+              onEvent(EventType.DELETE, isDirectory, childPath, count, rootPath);
             } else {
               // hashing is enabled, so delete the hashes
               Set<Path> subtreePaths = PathUtils.subMap(pathHashes, childPath).keySet();
               for (Path path : subtreePaths) {
                 boolean isDirectory = directories.remove(path);
-                onEvent(EventType.DELETE, path, count, rootPath, isDirectory);
+                onEvent(EventType.DELETE, isDirectory, path, count, rootPath);
               }
               // this will remove from the original map
               subtreePaths.clear();
@@ -341,10 +345,12 @@ public class DirectoryWatcher {
   }
 
   private void onEvent(
-      EventType eventType, Path childPath, int count, Path rootPath, boolean isDirectory)
+      EventType eventType, boolean isDirectory, Path childPath, int count, Path rootPath)
       throws IOException {
     logger.debug("-> {} [{}] (isDirectory: {})", eventType, childPath, isDirectory);
-    listener.onEvent(new DirectoryChangeEvent(eventType, childPath, count, rootPath, isDirectory));
+    FileHash hash = pathHashes.get(childPath);
+    listener.onEvent(
+        new DirectoryChangeEvent(eventType, isDirectory, childPath, hash, count, rootPath));
   }
 
   public DirectoryChangeListener getListener() {
@@ -396,10 +402,10 @@ public class DirectoryWatcher {
     registeredPathToRootPath.put(directory, context);
   }
 
-  private void notifyCreateEvent(Path path, int count, Path context, boolean isDirectory)
+  private void notifyCreateEvent(boolean isDirectory, Path path, int count, Path rootPath)
       throws IOException {
     if (fileHasher != null) {
-      HashCode newHash = PathUtils.hash(fileHasher, path);
+      FileHash newHash = PathUtils.hash(fileHasher, path);
       if (newHash == null) {
         // Hashing could fail for locked files on Windows.
         // Skip notification only if we confirm the file does not exist.
@@ -420,6 +426,6 @@ public class DirectoryWatcher {
     if (isDirectory) {
       directories.add(path);
     }
-    onEvent(EventType.CREATE, path, count, context, isDirectory);
+    onEvent(EventType.CREATE, isDirectory, path, count, rootPath);
   }
 }

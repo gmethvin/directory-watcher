@@ -1,16 +1,13 @@
-package io.methvin.watchservice;
+package io.methvin.watcher;
+
+import static junit.framework.TestCase.assertEquals;
+import static junit.framework.TestCase.assertTrue;
+import static org.awaitility.Awaitility.await;
+import static org.junit.Assert.*;
 
 import com.google.common.util.concurrent.UncheckedExecutionException;
-import io.methvin.watcher.DirectoryChangeEvent;
-import io.methvin.watcher.DirectoryChangeListener;
-import io.methvin.watcher.DirectoryWatcher;
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.Test;
-
+import io.methvin.watcher.hashing.FileHash;
+import io.methvin.watcher.hashing.FileHasher;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -20,7 +17,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -29,11 +25,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
-
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertTrue;
-import static org.awaitility.Awaitility.await;
-import static org.junit.Assert.*;
+import org.apache.commons.io.FileUtils;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.Before;
+import org.junit.Test;
 
 public class DirectoryWatcherOnDiskTest {
 
@@ -101,7 +98,9 @@ public class DirectoryWatcherOnDiskTest {
     List<Path> structure = createFolderStructure();
     copyAndVerifyEvents(structure);
 
-    await().atMost(5, TimeUnit.SECONDS).until(() -> tmpDir.toFile().listFiles().length == 0);
+    int atMost = 5;
+    int length = 0;
+    waitFileSize(atMost, length);
 
     // reset recorder
     ensureStill();
@@ -125,7 +124,7 @@ public class DirectoryWatcherOnDiskTest {
     List<Path> structure = createFolderStructure();
     copyAndVerifyEvents(structure);
 
-    await().atMost(5, TimeUnit.SECONDS).until(() -> tmpDir.toFile().listFiles().length == 0);
+    waitFileSize(5, 0);
 
     // reset recorder
     ensureStill();
@@ -426,51 +425,51 @@ public class DirectoryWatcherOnDiskTest {
     List<Path> paths2 = createStructure2(p2);
     List<Path> paths3 = createStructure2(p3);
 
-    wait(3, 15);
+    waitRecorderSize(3, 15);
 
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
 
     updatePaths(paths1);
-    await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 3);
+    waitRecorderSize(3, 3);
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
 
     updatePaths(paths2, paths3);
-    await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 6);
+    waitRecorderSize(3, 6);
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
 
     FileUtils.deleteDirectory(paths1.get(2).toFile());
-    await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 4);
+    waitRecorderSize(3, 4);
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
 
     FileUtils.deleteDirectory(paths2.get(2).toFile());
-    await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 4);
+    waitRecorderSize(3, 4);
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
 
     FileUtils.deleteDirectory(paths3.get(2).toFile());
-    await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 4);
+    waitRecorderSize(3, 4);
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();
 
     if (isMac()) {
       // macOS watcher sends delete events for the parent
       FileUtils.deleteDirectory(paths1.get(0).toFile()); // deletes the p1 root
-      await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 2);
+      waitRecorderSize(3, 2);
       checkEventsMatchContext(p1, p2, p3);
       this.recorder.events.clear();
 
       FileUtils.deleteDirectory(paths2.get(0).toFile()); // deletes the p2 root
-      await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 2);
+      waitRecorderSize(3, 2);
       checkEventsMatchContext(p1, p2, p3);
       this.recorder.events.clear();
 
       assertFalse(this.watcher.isClosed());
       FileUtils.deleteDirectory(paths3.get(0).toFile()); // deletes the p3 root
-      await().atMost(3, TimeUnit.SECONDS).until(() -> recorder.events.size() == 2);
+      waitRecorderSize(3, 2);
       assertTrue(this.watcher.isClosed());
     }
   }
@@ -488,17 +487,19 @@ public class DirectoryWatcherOnDiskTest {
             .build();
     this.watcher.watchAsync();
 
+    ensureStill();
+
     final Path f1 = Files.createTempFile(d1, "f1-", ".dat");
     Files.write(f1, new byte[] {counter++});
 
-    wait(3, 1);
+    waitRecorderSizeAtLeast(3, 1);
     assertEquals(DirectoryChangeEvent.EventType.CREATE, this.recorder.events.get(0).eventType());
     assertFalse(this.recorder.events.get(0).isDirectory());
 
     this.recorder.events.clear();
     Files.write(f1, new byte[] {counter++});
 
-    wait(3, 1);
+    waitRecorderSizeAtLeast(3, 1);
     assertEquals(DirectoryChangeEvent.EventType.MODIFY, this.recorder.events.get(0).eventType());
     assertFalse(this.recorder.events.get(0).isDirectory());
 
@@ -506,15 +507,16 @@ public class DirectoryWatcherOnDiskTest {
     Path d2 = d1.resolve("d2");
     Files.createDirectory(d2);
 
-    wait(3, 1);
+    waitRecorderSizeAtLeast(3, 1);
     assertEquals(DirectoryChangeEvent.EventType.CREATE, this.recorder.events.get(0).eventType());
     assertTrue(this.recorder.events.get(0).isDirectory());
 
     this.recorder.events.clear();
     Files.deleteIfExists(f1);
-    wait(3, 1);
+    waitRecorderSizeAtLeast(3, 1);
     Files.deleteIfExists(d2);
-    wait(3, 2);
+
+    waitRecorderSizeAtLeast(3, 2);
 
     assertEquals(DirectoryChangeEvent.EventType.DELETE, this.recorder.events.get(0).eventType());
     assertFalse(this.recorder.events.get(0).isDirectory());
@@ -525,11 +527,97 @@ public class DirectoryWatcherOnDiskTest {
     this.watcher.close();
   }
 
-  private void wait(int atMost, int untilSize) {
+  @Test
+  public void observePreHashes() throws IOException, InterruptedException {
+    Path d1 = this.tmpDir.resolve("d1");
+    Files.createDirectory(d1);
+
+    final Path f1 = Files.createTempFile(d1, "f1-", ".dat");
+    Files.write(f1, new byte[] {counter++});
+
+    this.watcher =
+        DirectoryWatcher.builder()
+            .paths(Arrays.asList(new Path[] {d1}))
+            .listener(this.recorder)
+            .fileHashing(true)
+            .build();
+
+    this.watcher.watchAsync();
+
+    Map<Path, FileHash> map = this.watcher.pathHashes();
+    assertTrue(FileHash.DIRECTORY == map.get(d1));
+
+    FileHash hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
+    assertEquals(hashCode1, map.get(f1));
+
+    try {
+      final Path f2 = Files.createTempFile(d1, "f2-", ".dat");
+      map.put(f2, null);
+      fail("Exception should be thrown");
+    } catch (UnsupportedOperationException e) {
+    }
+
+    this.watcher.close();
+  }
+
+  @Test
+  public void observeHashes() throws IOException, InterruptedException {
+    Path d1 = this.tmpDir.resolve("d1");
+    Files.createDirectory(d1);
+
+    this.watcher =
+        DirectoryWatcher.builder()
+            .paths(Arrays.asList(new Path[] {d1}))
+            .listener(this.recorder)
+            .fileHashing(true)
+            .build();
+
+    this.watcher.watchAsync();
+
+    ensureStill();
+
+    final Path f1 = Files.createTempFile(d1, "f1-", ".dat");
+    Files.write(f1, new byte[] {counter++});
+    waitRecorderSizeAtLeast(3, 1);
+
+    List<DirectoryChangeEvent> events = this.recorder.events;
+
+    FileHash hashCode1 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
+    FileHash recordedHash1 = events.get(events.size() - 1).hash();
+    assertNotSame(hashCode1, recordedHash1);
+    assertEquals(hashCode1, recordedHash1);
+
+    this.recorder.events.clear();
+    Files.write(f1, new byte[] {counter++});
+    waitRecorderSizeAtLeast(3, 1);
+
+    FileHash hashCode2 = FileHasher.DEFAULT_FILE_HASHER.hash(f1);
+    FileHash recordedHash2 = events.get(events.size() - 1).hash();
+    assertNotEquals(hashCode2, hashCode1);
+    assertNotSame(hashCode2, recordedHash2);
+    assertEquals(hashCode2, recordedHash2);
+
+    this.watcher.close();
+  }
+
+  private void waitRecorderSizeAtLeast(int atMost, int untilSize) {
+    await()
+        .atMost(atMost, TimeUnit.SECONDS)
+        .pollDelay(100, TimeUnit.MILLISECONDS)
+        .until(() -> this.recorder.events.size() >= untilSize);
+  }
+
+  private void waitRecorderSize(int atMost, int untilSize) {
     await()
         .atMost(atMost, TimeUnit.SECONDS)
         .pollDelay(100, TimeUnit.MILLISECONDS)
         .until(() -> this.recorder.events.size() == untilSize);
+  }
+
+  private void waitFileSize(int atMost, int length) {
+    await()
+        .atMost(atMost, TimeUnit.SECONDS)
+        .until(() -> tmpDir.toFile().listFiles().length == length);
   }
 
   private void ensureStill() {
