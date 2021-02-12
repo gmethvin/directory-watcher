@@ -5,6 +5,7 @@ import io.methvin.watcher.DirectoryChangeListener;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 public final class ChangeSetListener implements DirectoryChangeListener {
@@ -13,7 +14,14 @@ public final class ChangeSetListener implements DirectoryChangeListener {
 
   private final Object lock = new Object() {};
 
+  private BiConsumer<DirectoryChangeEvent.EventType, Map<Path, ChangeSet>> subscriber;
+
   public ChangeSetListener() {}
+
+  public ChangeSetListener(
+      BiConsumer<DirectoryChangeEvent.EventType, Map<Path, ChangeSet>> subscriber) {
+    this.subscriber = subscriber;
+  }
 
   @Override
   public void onEvent(DirectoryChangeEvent event) {
@@ -43,6 +51,9 @@ public final class ChangeSetListener implements DirectoryChangeListener {
           break;
         case OVERFLOW:
           throw new IllegalStateException("OVERFLOW not yet handled");
+      }
+      if (subscriber != null) {
+        subscriber.accept(event.eventType(), this.getChangeSet());
       }
     }
   }
