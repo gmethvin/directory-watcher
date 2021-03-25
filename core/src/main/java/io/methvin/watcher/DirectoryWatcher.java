@@ -227,12 +227,18 @@ public class DirectoryWatcher {
     while (listener.isWatching()) {
       // wait for key to be signalled
       WatchKey key;
+      int eventCount = 0;
       try {
-        key = watchService.take();
+        key = watchService.poll();
+        if (key == null) {
+          listener.onIdle(eventCount);
+          key = watchService.take();
+        }
       } catch (InterruptedException x) {
         return;
       }
       for (WatchEvent<?> event : key.pollEvents()) {
+        eventCount++;
         try {
           WatchEvent.Kind<?> kind = event.kind();
           // Context for directory entry event is the file name of entry
