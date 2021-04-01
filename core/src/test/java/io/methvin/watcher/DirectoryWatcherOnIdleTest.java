@@ -4,19 +4,19 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import io.methvin.watcher.changeset.ChangeSet;
 import io.methvin.watcher.changeset.ChangeSetListener;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -36,10 +36,6 @@ public class DirectoryWatcherOnIdleTest {
       FileUtils.deleteDirectory(this.tmpDir.toFile());
     } catch (Exception e) {
     }
-  }
-
-  private boolean isMac() {
-    return System.getProperty("os.name").toLowerCase().contains("mac");
   }
 
   @Test
@@ -77,6 +73,14 @@ public class DirectoryWatcherOnIdleTest {
     doDelay(400);
     assertTrue(updated.get() > 0 && updated.get() < 200);
     assertEquals(0, counter.get());
+  }
+
+  private void doDelay(long timeout) {
+    try {
+      Thread.sleep(timeout);
+    } catch (InterruptedException e) {
+      throw new UncheckedExecutionException(e);
+    }
   }
 
   @Test
@@ -126,24 +130,84 @@ public class DirectoryWatcherOnIdleTest {
     watcher.close();
   }
 
-  private void doDelay(long timeout) {
-    try {
-      Thread.sleep(timeout);
-    } catch (InterruptedException e) {
-      throw new UncheckedExecutionException(e);
-    }
+  private boolean isMac() {
+    return System.getProperty("os.name").toLowerCase().contains("mac");
+  }
+
+  @Test
+  public void testOnIdleChangeSet() throws IOException {
+    Path d1 = this.tmpDir.resolve("idle3");
+    Files.createDirectory(d1);
+
+    ChangeSetListener changeSetListener = new ChangeSetListener();
+
+    AtomicLong started = new AtomicLong();
+    AtomicLong updated = new AtomicLong();
+    AtomicInteger counter = new AtomicInteger(-1);
+    AtomicInteger onIdleCalled = new AtomicInteger(0);
+
+    Composite composite =
+        new Composite(
+            value -> {
+              updated.set(System.currentTimeMillis() - started.get());
+              counter.set(value);
+              onIdleCalled.incrementAndGet();
+              try {
+                watcher.close();
+              } catch (IOException e) {
+                e.printStackTrace();
+              }
+            },
+            changeSetListener);
+
+    watcher =
+        DirectoryWatcher.builder()
+            .paths(Arrays.asList(d1))
+            .listener(composite)
+            .fileHashing(true)
+            .onIdleTimeout(100)
+            .build();
+
+    started.set(System.currentTimeMillis());
+    watcher.watchAsync();
+
+    Files.createTempFile(d1, "parent1-", ".dat");
+    Files.createTempFile(d1, "parent2-", ".dat");
+    Files.createTempFile(d1, "parent3-", ".dat");
+    Files.createTempFile(d1, "parent4-", ".dat");
+    Files.createTempFile(d1, "parent5-", ".dat");
+    Files.createTempFile(d1, "parent6-", ".dat");
+    Files.createTempFile(d1, "parent7-", ".dat");
+    doDelay(200);
+
+    assertEquals(1, onIdleCalled.get());
+
+    Map<Path, ChangeSet> changeSet = changeSetListener.getChangeSet();
+    assertTrue(!changeSet.isEmpty());
+    assertEquals(7, changeSet.get(d1).created().size());
   }
 
   public static class Composite implements DirectoryChangeListener {
 
+    public ChangeSetListener changeSetListener;
+
     private Consumer<Integer> counter;
 
     public Composite(Consumer<Integer> counter) {
+      this(counter, null);
+    }
+
+    public Composite(Consumer<Integer> counter, ChangeSetListener changeSetListener) {
       this.counter = counter;
+      this.changeSetListener = changeSetListener;
     }
 
     @Override
-    public void onEvent(DirectoryChangeEvent event) {}
+    public void onEvent(DirectoryChangeEvent event) {
+      if (changeSetListener != null) {
+        changeSetListener.onEvent(event);
+      }
+    }
 
     @Override
     public void onIdle(int count) {
