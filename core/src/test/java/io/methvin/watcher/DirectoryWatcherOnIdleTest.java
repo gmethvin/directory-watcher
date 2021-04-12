@@ -62,15 +62,15 @@ public class DirectoryWatcherOnIdleTest {
     watcher =
         DirectoryWatcher.builder()
             .paths(Arrays.asList(d1))
-            .listener(new Composite(consumer))
+            .listener(new ChangeSetListener(100, consumer))
             .fileHashing(true)
-            .onIdleTimeout(100)
             .build();
 
     started.set(System.currentTimeMillis());
     watcher.watchAsync();
 
     doDelay(400);
+
     assertTrue(updated.get() > 0 && updated.get() < 200);
     assertEquals(0, counter.get());
   }
@@ -103,9 +103,8 @@ public class DirectoryWatcherOnIdleTest {
     watcher =
         DirectoryWatcher.builder()
             .paths(Arrays.asList(d1))
-            .listener(new Composite(consumer))
+            .listener(new ChangeSetListener(1000, consumer))
             .fileHashing(true)
-            .onIdleTimeout(1000)
             .build();
 
     started.set(System.currentTimeMillis());
@@ -139,33 +138,25 @@ public class DirectoryWatcherOnIdleTest {
     Path d1 = this.tmpDir.resolve("idle3");
     Files.createDirectory(d1);
 
-    ChangeSetListener changeSetListener = new ChangeSetListener();
-
     AtomicLong started = new AtomicLong();
     AtomicLong updated = new AtomicLong();
     AtomicInteger counter = new AtomicInteger(-1);
     AtomicInteger onIdleCalled = new AtomicInteger(0);
 
-    Composite composite =
-        new Composite(
+    ChangeSetListener composite =
+        new ChangeSetListener(
+            100,
             value -> {
               updated.set(System.currentTimeMillis() - started.get());
               counter.set(value);
               onIdleCalled.incrementAndGet();
-              try {
-                watcher.close();
-              } catch (IOException e) {
-                e.printStackTrace();
-              }
-            },
-            changeSetListener);
+            });
 
     watcher =
         DirectoryWatcher.builder()
             .paths(Arrays.asList(d1))
             .listener(composite)
             .fileHashing(true)
-            .onIdleTimeout(100)
             .build();
 
     started.set(System.currentTimeMillis());
@@ -182,36 +173,10 @@ public class DirectoryWatcherOnIdleTest {
 
     assertEquals(1, onIdleCalled.get());
 
-    Map<Path, ChangeSet> changeSet = changeSetListener.getChangeSet();
+    Map<Path, ChangeSet> changeSet = composite.getChangeSet();
     assertTrue(!changeSet.isEmpty());
     assertEquals(7, changeSet.get(d1).created().size());
-  }
 
-  public static class Composite implements DirectoryChangeListener {
-
-    public ChangeSetListener changeSetListener;
-
-    private Consumer<Integer> counter;
-
-    public Composite(Consumer<Integer> counter) {
-      this(counter, null);
-    }
-
-    public Composite(Consumer<Integer> counter, ChangeSetListener changeSetListener) {
-      this.counter = counter;
-      this.changeSetListener = changeSetListener;
-    }
-
-    @Override
-    public void onEvent(DirectoryChangeEvent event) {
-      if (changeSetListener != null) {
-        changeSetListener.onEvent(event);
-      }
-    }
-
-    @Override
-    public void onIdle(int count) {
-      counter.accept(count);
-    }
+    watcher.close();
   }
 }

@@ -27,21 +27,16 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.*;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,7 +121,7 @@ public class DirectoryWatcher {
       if (logger == null) {
         staticLogger();
       }
-      return new DirectoryWatcher(paths, listener, watchService, fileHasher, logger, timeout);
+      return new DirectoryWatcher(paths, listener, watchService, fileHasher, logger);
     }
 
     private Builder osDefaultWatchService() throws IOException {
@@ -154,11 +149,6 @@ public class DirectoryWatcher {
     private Builder staticLogger() {
       return logger(LoggerFactory.getLogger(DirectoryWatcher.class));
     }
-
-    public Builder onIdleTimeout(int timeout) {
-      this.timeout = timeout;
-      return this;
-    }
   }
 
   /** Get a new builder for a {@link DirectoryWatcher}. */
@@ -178,10 +168,6 @@ public class DirectoryWatcher {
   // set to null until we check if FILE_TREE is supported
   private Boolean fileTreeSupported = null;
   private FileHasher fileHasher;
-  private int timeout = -1;
-
-  private Timer timer = new Timer("DirectoryWatcherTimer");
-  private OnIdleTimerTask currentOnIdleTimerTask;
 
   private volatile boolean closed;
 
@@ -190,8 +176,7 @@ public class DirectoryWatcher {
       DirectoryChangeListener listener,
       WatchService watchService,
       FileHasher fileHasher,
-      Logger logger,
-      int timeout)
+      Logger logger)
       throws IOException {
     this.closed = false;
     this.registeredPathToRootPath = new HashMap<>();
@@ -203,7 +188,6 @@ public class DirectoryWatcher {
     this.keyRoots = new ConcurrentHashMap<>();
     this.fileHasher = fileHasher;
     this.logger = logger;
-    this.timeout = timeout;
 
     PathUtils.initWatcherState(paths, fileHasher, pathHashes, directories);
 
@@ -242,28 +226,21 @@ public class DirectoryWatcher {
    * is closed.
    */
   public void watch() {
-    final AtomicInteger eventCount = new AtomicInteger(0);
+    int eventCount = 0;
     while (listener.isWatching()) {
       // wait for key to be signalled
       WatchKey key;
       try {
         key = watchService.poll();
         if (key == null) {
-          if (timeout > 0) {
-            currentOnIdleTimerTask = new OnIdleTimerTask(listener, eventCount.get());
-            timer.schedule(currentOnIdleTimerTask, timeout);
-          }
+          listener.onIdle(eventCount);
           key = watchService.take();
         }
       } catch (InterruptedException x) {
         return;
       }
       for (WatchEvent<?> event : key.pollEvents()) {
-        eventCount.incrementAndGet();
-        if (currentOnIdleTimerTask != null && !currentOnIdleTimerTask.isDone) {
-          currentOnIdleTimerTask.cancel();
-        }
-
+        eventCount++;
         try {
           WatchEvent.Kind<?> kind = event.kind();
           // Context for directory entry event is the file name of entry
@@ -458,26 +435,5 @@ public class DirectoryWatcher {
       directories.add(path);
     }
     onEvent(EventType.CREATE, isDirectory, path, count, rootPath);
-  }
-
-  private class OnIdleTimerTask extends TimerTask {
-
-    private boolean isDone = false;
-
-    private int counter;
-
-    private DirectoryChangeListener listener;
-
-    private OnIdleTimerTask(DirectoryChangeListener listener, int counter) {
-      this.listener = listener;
-      this.counter = counter;
-    }
-
-    @Override
-    public void run() {
-      logger.debug("Task performed on: " + new Date() + " with event count " + counter);
-      listener.onIdle(counter);
-      this.isDone = true;
-    }
   }
 }
