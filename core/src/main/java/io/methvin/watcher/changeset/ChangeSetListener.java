@@ -5,11 +5,6 @@ import io.methvin.watcher.DirectoryChangeListener;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public final class ChangeSetListener implements DirectoryChangeListener {
@@ -17,26 +12,6 @@ public final class ChangeSetListener implements DirectoryChangeListener {
   private Map<Path, ChangeSetBuilder> changeBuilders = new HashMap<>();
 
   private final Object lock = new Object() {};
-
-  private final int timeout;
-
-  private ScheduledExecutorService service;
-  private ScheduledFuture currentTask;
-
-  private Consumer<Integer> onIdleListener;
-
-  public ChangeSetListener() {
-    this(-1, null);
-  }
-
-  public ChangeSetListener(int timeout, Consumer<Integer> onIdleListener) {
-    this.timeout = timeout;
-    this.onIdleListener = onIdleListener;
-
-    if (timeout > 0) {
-      service = Executors.newSingleThreadScheduledExecutor();
-    }
-  }
 
   @Override
   public void onEvent(DirectoryChangeEvent event) {
@@ -67,11 +42,6 @@ public final class ChangeSetListener implements DirectoryChangeListener {
         case OVERFLOW:
           throw new IllegalStateException("OVERFLOW not yet handled");
       }
-
-      if (timeout > 0 && currentTask != null) {
-        currentTask.cancel(false);
-        currentTask = null;
-      }
     }
   }
 
@@ -83,19 +53,5 @@ public final class ChangeSetListener implements DirectoryChangeListener {
     }
     return returnBuilders.entrySet().stream()
         .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().toChangeSet()));
-  }
-
-  @Override
-  public void onIdle(int count) {
-    synchronized (lock) {
-      if (timeout > 0) {
-        if (currentTask != null) {
-          currentTask.cancel(false);
-          currentTask = null;
-        }
-        currentTask =
-            service.schedule(() -> onIdleListener.accept(count), timeout, TimeUnit.MILLISECONDS);
-      }
-    }
   }
 }

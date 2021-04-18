@@ -62,7 +62,7 @@ public class DirectoryWatcherOnIdleTest {
     watcher =
         DirectoryWatcher.builder()
             .paths(Arrays.asList(d1))
-            .listener(new ChangeSetListener(100, consumer))
+            .listener(new CompositeListener(100, consumer))
             .fileHashing(true)
             .build();
 
@@ -103,7 +103,7 @@ public class DirectoryWatcherOnIdleTest {
     watcher =
         DirectoryWatcher.builder()
             .paths(Arrays.asList(d1))
-            .listener(new ChangeSetListener(1000, consumer))
+            .listener(new CompositeListener(1000, consumer))
             .fileHashing(true)
             .build();
 
@@ -143,8 +143,8 @@ public class DirectoryWatcherOnIdleTest {
     AtomicInteger counter = new AtomicInteger(-1);
     AtomicInteger onIdleCalled = new AtomicInteger(0);
 
-    ChangeSetListener composite =
-        new ChangeSetListener(
+    CompositeListener composite =
+        new CompositeListener(
             100,
             value -> {
               updated.set(System.currentTimeMillis() - started.get());
@@ -178,5 +178,37 @@ public class DirectoryWatcherOnIdleTest {
     assertEquals(7, changeSet.get(d1).created().size());
 
     watcher.close();
+  }
+
+  private class CompositeListener implements DirectoryChangeListener {
+
+    private final ChangeSetListener changeSetListener = new ChangeSetListener();
+    private final OnTimeoutListener onTimeoutListener;
+
+    private CompositeListener(int timeout, Consumer<Integer> consumer) {
+      this.onTimeoutListener =
+          new OnTimeoutListener(timeout) {
+
+            @Override
+            public void onTimeout(int count) {
+              consumer.accept(count);
+            }
+          };
+    }
+
+    @Override
+    public void onIdle(int count) {
+      onTimeoutListener.onIdle(count);
+    }
+
+    @Override
+    public void onEvent(DirectoryChangeEvent event) throws IOException {
+      changeSetListener.onEvent(event);
+      onTimeoutListener.onEvent(event);
+    }
+
+    public Map<Path, ChangeSet> getChangeSet() {
+      return changeSetListener.getChangeSet();
+    }
   }
 }
