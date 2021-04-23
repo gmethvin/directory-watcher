@@ -16,6 +16,7 @@ import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.Assume;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -40,6 +41,8 @@ public class DirectoryWatcherOnIdleTest {
 
   @Test
   public void testOnIdle() throws IOException {
+    Assume.assumeTrue(!isMac());
+
     Path d1 = this.tmpDir.resolve("idle1");
     Files.createDirectory(d1);
 
@@ -85,6 +88,8 @@ public class DirectoryWatcherOnIdleTest {
 
   @Test
   public void testOnIdleFilesCreationAdded() throws IOException {
+    Assume.assumeTrue(!isMac());
+
     Path d1 = this.tmpDir.resolve("idle2");
     Files.createDirectory(d1);
 
@@ -135,6 +140,8 @@ public class DirectoryWatcherOnIdleTest {
 
   @Test
   public void testOnIdleChangeSet() throws IOException {
+    Assume.assumeTrue(!isMac());
+
     Path d1 = this.tmpDir.resolve("idle3");
     Files.createDirectory(d1);
 

@@ -14,7 +14,6 @@
 
 package io.methvin.watcher;
 
-import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -25,9 +24,8 @@ import java.util.function.Consumer;
 public class OnTimeoutListener implements DirectoryChangeListener {
 
   private final int timeoutMillis;
-
-  private ScheduledExecutorService service;
   private final AtomicReference<ScheduledFuture> currentTaskRef = new AtomicReference<>();
+  private ScheduledExecutorService service;
   private Consumer<Integer> consumer;
 
   public OnTimeoutListener(int timeoutMillis) {
@@ -55,12 +53,11 @@ public class OnTimeoutListener implements DirectoryChangeListener {
               oldTask.cancel(false);
             }
             return service.schedule(
-                () ->
-                    (Callable)
-                        () -> {
-                          consumer.accept(count);
-                          return null;
-                        },
+                () -> {
+                  if (consumer != null) {
+                    consumer.accept(count);
+                  }
+                },
                 timeoutMillis,
                 TimeUnit.MILLISECONDS);
           });
