@@ -14,50 +14,61 @@
 
 package io.methvin.watcher;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
-public abstract class OnTimeoutListener implements DirectoryChangeListener {
+public class OnTimeoutListener implements DirectoryChangeListener {
 
-  private final Object lock = new Object() {};
-
-  private final int timeout;
+  private final int timeoutMillis;
 
   private ScheduledExecutorService service;
-  private ScheduledFuture currentTask;
+  private final AtomicReference<ScheduledFuture> currentTaskRef = new AtomicReference<>();
+  private Consumer<Integer> consumer;
 
-  public OnTimeoutListener(int timeout) {
-    this.timeout = timeout;
+  public OnTimeoutListener(int timeoutMillis) {
+    this.timeoutMillis = timeoutMillis;
 
-    if (timeout >= 0) {
+    if (timeoutMillis >= 0) {
       service = Executors.newSingleThreadScheduledExecutor();
     }
   }
 
   @Override
   public void onEvent(DirectoryChangeEvent event) {
-    synchronized (lock) {
-      if (timeout >= 0 && currentTask != null) {
-        currentTask.cancel(false);
-        currentTask = null;
-      }
+    ScheduledFuture taskToCancel = currentTaskRef.getAndSet(null);
+    if (taskToCancel != null) {
+      taskToCancel.cancel(false);
     }
   }
 
   @Override
   public void onIdle(int count) {
-    synchronized (lock) {
-      if (timeout >= 0) {
-        if (currentTask != null) {
-          currentTask.cancel(false);
-          currentTask = null;
-        }
-        currentTask = service.schedule(() -> onTimeout(count), timeout, TimeUnit.MILLISECONDS);
-      }
+    if (timeoutMillis >= 0) {
+      currentTaskRef.getAndUpdate(
+          oldTask -> {
+            if (oldTask != null) {
+              oldTask.cancel(false);
+            }
+            return service.schedule(
+                () ->
+                    (Callable)
+                        () -> {
+                          consumer.accept(count);
+                          return null;
+                        },
+                timeoutMillis,
+                TimeUnit.MILLISECONDS);
+          });
     }
   }
 
-  public abstract void onTimeout(int count);
+  public OnTimeoutListener onTimeout(Consumer<Integer> consumer) {
+    this.consumer = consumer;
+    return this;
+  }
 }

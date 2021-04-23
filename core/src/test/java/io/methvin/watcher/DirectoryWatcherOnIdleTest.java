@@ -186,14 +186,7 @@ public class DirectoryWatcherOnIdleTest {
     private final OnTimeoutListener onTimeoutListener;
 
     private CompositeListener(int timeout, Consumer<Integer> consumer) {
-      this.onTimeoutListener =
-          new OnTimeoutListener(timeout) {
-
-            @Override
-            public void onTimeout(int count) {
-              consumer.accept(count);
-            }
-          };
+      this.onTimeoutListener = new OnTimeoutListener(timeout).onTimeout(consumer::accept);
     }
 
     @Override
