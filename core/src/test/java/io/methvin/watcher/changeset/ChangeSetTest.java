@@ -250,11 +250,10 @@ public class ChangeSetTest {
       Files.createDirectory(p);
     }
 
-    Composite composite = new Composite(listener, recorder);
     watcher =
         DirectoryWatcher.builder()
             .paths(Arrays.asList(paths))
-            .listener(composite)
+            .listener(DirectoryChangeListener.of(listener, recorder))
             .fileHashing(true)
             .build();
 
@@ -266,21 +265,6 @@ public class ChangeSetTest {
         .atMost(atMost, TimeUnit.SECONDS)
         .pollDelay(100, TimeUnit.MILLISECONDS)
         .until(() -> this.recorder.events.size() == untilSize);
-  }
-
-  public static class Composite implements DirectoryChangeListener {
-    private List<DirectoryChangeListener> listeners;
-
-    public Composite(DirectoryChangeListener... listeners) {
-      this.listeners = Arrays.asList(listeners);
-    }
-
-    @Override
-    public void onEvent(DirectoryChangeEvent event) throws IOException {
-      for (DirectoryChangeListener listener : listeners) {
-        listener.onEvent(event);
-      }
-    }
   }
 
   class EventRecorder implements DirectoryChangeListener {

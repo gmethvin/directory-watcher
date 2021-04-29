@@ -62,10 +62,13 @@ public class DirectoryWatcherOnIdleTest {
           }
         };
 
+    ChangeSetListener changeSetListener = new ChangeSetListener();
+
     watcher =
         DirectoryWatcher.builder()
             .paths(Arrays.asList(d1))
-            .listener(new CompositeListener(100, consumer))
+            .listener(
+                DirectoryChangeListener.of(changeSetListener, new OnTimeoutListener(100, consumer)))
             .fileHashing(true)
             .build();
 
@@ -108,7 +111,9 @@ public class DirectoryWatcherOnIdleTest {
     watcher =
         DirectoryWatcher.builder()
             .paths(Arrays.asList(d1))
-            .listener(new CompositeListener(1000, consumer))
+            .listener(
+                DirectoryChangeListener.of(
+                    new ChangeSetListener(), new OnTimeoutListener(1000, consumer)))
             .fileHashing(true)
             .build();
 
@@ -150,19 +155,20 @@ public class DirectoryWatcherOnIdleTest {
     AtomicInteger counter = new AtomicInteger(-1);
     AtomicInteger onIdleCalled = new AtomicInteger(0);
 
-    CompositeListener composite =
-        new CompositeListener(
+    OnTimeoutListener onTimeoutListener =
+        new OnTimeoutListener(
             100,
             value -> {
               updated.set(System.currentTimeMillis() - started.get());
               counter.set(value);
               onIdleCalled.incrementAndGet();
             });
+    ChangeSetListener changeSetListener = new ChangeSetListener();
 
     watcher =
         DirectoryWatcher.builder()
             .paths(Arrays.asList(d1))
-            .listener(composite)
+            .listener(DirectoryChangeListener.of(changeSetListener, onTimeoutListener))
             .fileHashing(true)
             .build();
 
@@ -180,35 +186,10 @@ public class DirectoryWatcherOnIdleTest {
 
     assertEquals(1, onIdleCalled.get());
 
-    Map<Path, ChangeSet> changeSet = composite.getChangeSet();
+    Map<Path, ChangeSet> changeSet = changeSetListener.getChangeSet();
     assertTrue(!changeSet.isEmpty());
     assertEquals(7, changeSet.get(d1).created().size());
 
     watcher.close();
-  }
-
-  private class CompositeListener implements DirectoryChangeListener {
-
-    private final ChangeSetListener changeSetListener = new ChangeSetListener();
-    private final OnTimeoutListener onTimeoutListener;
-
-    private CompositeListener(int timeout, Consumer<Integer> consumer) {
-      this.onTimeoutListener = new OnTimeoutListener(timeout).onTimeout(consumer::accept);
-    }
-
-    @Override
-    public void onIdle(int count) {
-      onTimeoutListener.onIdle(count);
-    }
-
-    @Override
-    public void onEvent(DirectoryChangeEvent event) throws IOException {
-      changeSetListener.onEvent(event);
-      onTimeoutListener.onEvent(event);
-    }
-
-    public Map<Path, ChangeSet> getChangeSet() {
-      return changeSetListener.getChangeSet();
-    }
   }
 }

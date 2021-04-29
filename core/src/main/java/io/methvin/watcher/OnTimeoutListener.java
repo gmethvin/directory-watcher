@@ -14,6 +14,7 @@
 
 package io.methvin.watcher;
 
+import java.lang.IllegalArgumentException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -21,24 +22,28 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-public class OnTimeoutListener implements DirectoryChangeListener {
+public final class OnTimeoutListener implements DirectoryChangeListener {
 
   private final int timeoutMillis;
-  private final AtomicReference<ScheduledFuture> currentTaskRef = new AtomicReference<>();
-  private ScheduledExecutorService service;
-  private Consumer<Integer> consumer;
+  private final Consumer<Integer> timeoutCallback;
+  private final AtomicReference<ScheduledFuture<?>> currentTaskRef = new AtomicReference<>();
+  private final ScheduledExecutorService service;
 
-  public OnTimeoutListener(int timeoutMillis) {
-    this.timeoutMillis = timeoutMillis;
-
-    if (timeoutMillis >= 0) {
-      service = Executors.newSingleThreadScheduledExecutor();
+  public OnTimeoutListener(int timeoutMillis, Consumer<Integer> timeoutCallback) {
+    if (timeoutMillis < 0) {
+      throw new IllegalArgumentException("timeoutMillis must be non-negative");
     }
+    if (timeoutCallback == null) {
+      throw new IllegalArgumentException("timeoutCallback must be non-null");
+    }
+    this.timeoutMillis = timeoutMillis;
+    this.timeoutCallback = timeoutCallback;
+    this.service = Executors.newSingleThreadScheduledExecutor();
   }
 
   @Override
   public void onEvent(DirectoryChangeEvent event) {
-    ScheduledFuture taskToCancel = currentTaskRef.getAndSet(null);
+    ScheduledFuture<?> taskToCancel = currentTaskRef.getAndSet(null);
     if (taskToCancel != null) {
       taskToCancel.cancel(false);
     }
@@ -46,26 +51,13 @@ public class OnTimeoutListener implements DirectoryChangeListener {
 
   @Override
   public void onIdle(int count) {
-    if (timeoutMillis >= 0) {
-      currentTaskRef.getAndUpdate(
-          oldTask -> {
-            if (oldTask != null) {
-              oldTask.cancel(false);
-            }
-            return service.schedule(
-                () -> {
-                  if (consumer != null) {
-                    consumer.accept(count);
-                  }
-                },
-                timeoutMillis,
-                TimeUnit.MILLISECONDS);
-          });
-    }
-  }
-
-  public OnTimeoutListener onTimeout(Consumer<Integer> consumer) {
-    this.consumer = consumer;
-    return this;
+    currentTaskRef.getAndUpdate(
+        oldTask -> {
+          if (oldTask != null) {
+            oldTask.cancel(false);
+          }
+          return service.schedule(
+              () -> timeoutCallback.accept(count), timeoutMillis, TimeUnit.MILLISECONDS);
+        });
   }
 }
