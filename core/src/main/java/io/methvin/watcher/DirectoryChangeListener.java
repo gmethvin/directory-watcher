@@ -21,6 +21,40 @@ import java.io.IOException;
 @FunctionalInterface
 public interface DirectoryChangeListener {
 
+  static DirectoryChangeListener of(DirectoryChangeListener... listeners) {
+    return new DirectoryChangeListener() {
+      @Override
+      public void onEvent(DirectoryChangeEvent event) throws IOException {
+        for (DirectoryChangeListener listener : listeners) {
+          listener.onEvent(event);
+        }
+      }
+
+      @Override
+      public void onException(Exception e) {
+        for (DirectoryChangeListener listener : listeners) {
+          listener.onException(e);
+        }
+      }
+
+      @Override
+      public void onIdle(int count) {
+        for (DirectoryChangeListener listener : listeners) {
+          listener.onIdle(count);
+        }
+      }
+
+      @Override
+      public boolean isWatching() {
+        boolean anyWatching = false;
+        for (DirectoryChangeListener listener : listeners) {
+          anyWatching |= listener.isWatching();
+        }
+        return anyWatching;
+      }
+    };
+  }
+
   void onEvent(DirectoryChangeEvent event) throws IOException;
 
   /** The watcher will stop watching after this method returns false. */

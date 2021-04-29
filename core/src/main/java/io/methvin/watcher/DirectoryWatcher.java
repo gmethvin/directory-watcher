@@ -53,7 +53,6 @@ public class DirectoryWatcher {
     private Logger logger = null;
     private FileHasher fileHasher = FileHasher.DEFAULT_FILE_HASHER;
     private WatchService watchService = null;
-    private int timeout = -1;
 
     private Builder() {}
 
