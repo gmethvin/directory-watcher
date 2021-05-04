@@ -37,6 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +53,7 @@ public class DirectoryWatcher {
     private Logger logger = null;
     private FileHasher fileHasher = FileHasher.DEFAULT_FILE_HASHER;
     private WatchService watchService = null;
+    private int timeout = -1;
 
     private Builder() {}
 
@@ -224,15 +226,21 @@ public class DirectoryWatcher {
    * is closed.
    */
   public void watch() {
+    int eventCount = 0;
     while (listener.isWatching()) {
       // wait for key to be signalled
       WatchKey key;
       try {
-        key = watchService.take();
+        key = watchService.poll();
+        if (key == null) {
+          listener.onIdle(eventCount);
+          key = watchService.take();
+        }
       } catch (InterruptedException x) {
         return;
       }
       for (WatchEvent<?> event : key.pollEvents()) {
+        eventCount++;
         try {
           WatchEvent.Kind<?> kind = event.kind();
           // Context for directory entry event is the file name of entry

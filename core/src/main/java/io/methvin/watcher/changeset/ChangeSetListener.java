@@ -13,8 +13,6 @@ public final class ChangeSetListener implements DirectoryChangeListener {
 
   private final Object lock = new Object() {};
 
-  public ChangeSetListener() {}
-
   @Override
   public void onEvent(DirectoryChangeEvent event) {
     Path rootPath = event.rootPath();

@@ -28,6 +28,10 @@ public interface DirectoryChangeListener {
     return true;
   }
 
+  default void onIdle(int count) {
+    // ignore onIdle by default
+  }
+
   /**
    * A handler for uncaught exceptions. Throwing an exception from here will terminate the watcher.
    */
