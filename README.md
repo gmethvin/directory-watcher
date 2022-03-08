@@ -2,7 +2,7 @@
 
 [![Maven](https://img.shields.io/maven-central/v/io.methvin/directory-watcher.svg)](https://mvnrepository.com/artifact/io.methvin/directory-watcher)
 
-A directory watcher utility for JDK 8+ that aims to provide accurate and efficient recursive watching for Linux, macOS and Windows. In particular, this library provides a JNA-based `WatchService` for Mac OS X to replace the default polling-based JDK implementation.
+A directory watcher utility for JDK 8+ that aims to provide accurate and efficient recursive watching for Linux, macOS and Windows. In particular, this library provides a JNA-based `WatchService` for Mac OS X to replace the default polling-based JDK implementation (improvement tracked in [JDK-7133447](https://bugs.openjdk.java.net/browse/JDK-7133447)).
 
 The core directory-watcher library is designed to have minimal dependencies; currently it only depends on `slf4j-api` (for internal logging, which can be disabled by passing a `NOPLogger` in the builder) and `jna` (for the macOS watcher implementation).
 
