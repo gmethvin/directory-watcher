@@ -223,8 +223,13 @@ public class DirectoryWatcher {
   /**
    * Watch the directories. Block until either the listener stops watching or the DirectoryWatcher
    * is closed.
+   *
+   * @throws IllegalStateException if the directory watcher is closed when watch() is called.
    */
   public void watch() {
+    if (closed) {
+      throw new IllegalStateException("watcher already closed");
+    }
     int eventCount = 0;
     while (listener.isWatching()) {
       // wait for key to be signalled
@@ -235,7 +240,7 @@ public class DirectoryWatcher {
           listener.onIdle(eventCount);
           key = watchService.take();
         }
-      } catch (InterruptedException x) {
+      } catch (InterruptedException | ClosedWatchServiceException e) {
         return;
       }
       for (WatchEvent<?> event : key.pollEvents()) {

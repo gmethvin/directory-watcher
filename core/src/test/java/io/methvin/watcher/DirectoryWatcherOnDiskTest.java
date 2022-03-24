@@ -302,6 +302,43 @@ public class DirectoryWatcherOnDiskTest {
   }
 
   @Test
+  public void throwWhenWatchCalledOnClosedWatcher()
+      throws IOException, ExecutionException, InterruptedException {
+    this.watcher =
+        DirectoryWatcher.builder()
+            .path(this.tmpDir)
+            .listener(this.recorder)
+            .fileHashing(false)
+            .build();
+    this.watcher.close();
+    try {
+      this.watcher.watch(); // should throw IllegalStateException
+      fail("watcher did not throw");
+    } catch (IllegalStateException e) {
+      // expected
+    }
+  }
+
+  @Test
+  public void exitNormallyWhenWatcherClosed()
+      throws IOException, ExecutionException, InterruptedException {
+    this.watcher =
+        DirectoryWatcher.builder()
+            .path(this.tmpDir)
+            .listener(this.recorder)
+            .fileHashing(false)
+            .build();
+    final CompletableFuture<Void> future = this.watcher.watchAsync();
+    Thread.sleep(100);
+    this.watcher.close();
+    try {
+      future.get(1, TimeUnit.SECONDS); // should return normally
+    } catch (TimeoutException e) {
+      throw new IllegalStateException("watcher not closed", e);
+    }
+  }
+
+  @Test
   public void emitCreateEventWhenFileLockedNoHashing()
       throws IOException, ExecutionException, InterruptedException {
     Assume.assumeTrue(isWin());
