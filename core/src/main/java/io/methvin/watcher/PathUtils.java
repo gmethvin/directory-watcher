@@ -15,9 +15,10 @@ package io.methvin.watcher;
 
 import io.methvin.watcher.hashing.FileHash;
 import io.methvin.watcher.hashing.FileHasher;
+import io.methvin.watcher.visitor.FileTreeVisitor;
+
 import java.io.IOException;
 import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 
@@ -42,40 +43,37 @@ public class PathUtils {
     return pathMap.subMap(treeRoot, Paths.get(treeRoot.toString(), "" + Character.MAX_VALUE));
   }
 
-  public static SortedMap<Path, FileHash> createHashCodeMap(Path file, FileHasher fileHasher)
-      throws IOException {
-    return createHashCodeMap(Collections.singletonList(file), fileHasher);
-  }
-
-  public static SortedMap<Path, FileHash> createHashCodeMap(List<Path> files, FileHasher fileHasher)
-      throws IOException {
-    SortedMap<Path, FileHash> lastModifiedMap = new ConcurrentSkipListMap<>();
+  public static SortedMap<Path, FileHash> createHashCodeMap(
+      Path file, FileHasher fileHasher, FileTreeVisitor fileTreeVisitor) throws IOException {
+    SortedMap<Path, FileHash> hashes = new ConcurrentSkipListMap<>();
+    FileTreeVisitor.Callback addHash =
+        path -> {
+          FileHash hash = PathUtils.hash(fileHasher, path);
+          if (hash != null) hashes.put(path, hash);
+        };
     if (fileHasher != null) {
-      for (Path file : files) {
-        for (Path child : recursiveListFiles(file)) {
-          FileHash hash = PathUtils.hash(fileHasher, child);
-          if (hash != null) {
-            lastModifiedMap.put(child, hash);
-          }
-        }
-      }
+      fileTreeVisitor.recursiveVisitFiles(file, addHash, addHash);
     }
-    return lastModifiedMap;
+    return hashes;
   }
 
   public static void initWatcherState(
-      List<Path> roots, FileHasher fileHasher, Map<Path, FileHash> hashes, Set<Path> directories)
+      List<Path> roots,
+      FileHasher fileHasher,
+      FileTreeVisitor fileTreeVisitor,
+      Map<Path, FileHash> hashes,
+      Set<Path> directories)
       throws IOException {
     for (Path root : roots) {
       if (fileHasher == null) {
-        recursiveVisitFiles(root, directories::add, file -> {});
+        fileTreeVisitor.recursiveVisitFiles(root, directories::add, file -> {});
       } else {
-        PathCallback addHash =
+        FileTreeVisitor.Callback addHash =
             path -> {
               FileHash hash = PathUtils.hash(fileHasher, path);
               if (hash != null) hashes.put(path, hash);
             };
-        recursiveVisitFiles(
+        fileTreeVisitor.recursiveVisitFiles(
             root,
             dir -> {
               directories.add(dir);
@@ -86,7 +84,8 @@ public class PathUtils {
     }
   }
 
-  public static Set<Path> recursiveListFiles(Path file) throws IOException {
+  public static Set<Path> recursiveListFiles(FileTreeVisitor fileTreeVisitor, Path file)
+      throws IOException {
     if (!Files.exists(file)) {
       return Collections.emptySet();
     }
@@ -94,34 +93,9 @@ public class PathUtils {
     final Set<Path> files = new HashSet<>();
     files.add(file);
 
-    recursiveVisitFiles(file, files::add, files::add);
+    fileTreeVisitor.recursiveVisitFiles(file, files::add, files::add);
 
     return files;
-  }
-
-  interface PathCallback {
-    void call(Path p) throws IOException;
-  }
-
-  public static void recursiveVisitFiles(Path file, PathCallback onDirectory, PathCallback onFile)
-      throws IOException {
-    Files.walkFileTree(
-        file,
-        new SimpleFileVisitor<Path>() {
-          @Override
-          public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-              throws IOException {
-            onDirectory.call(dir);
-            return FileVisitResult.CONTINUE;
-          }
-
-          @Override
-          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-              throws IOException {
-            onFile.call(file);
-            return FileVisitResult.CONTINUE;
-          }
-        });
   }
 
   @SuppressWarnings("unchecked")

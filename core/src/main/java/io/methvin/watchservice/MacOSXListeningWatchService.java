@@ -20,6 +20,7 @@ import com.sun.jna.Pointer;
 import io.methvin.watcher.PathUtils;
 import io.methvin.watcher.hashing.FileHash;
 import io.methvin.watcher.hashing.FileHasher;
+import io.methvin.watcher.visitor.FileTreeVisitor;
 import io.methvin.watchservice.jna.*;
 import java.io.File;
 import java.io.IOException;
@@ -71,6 +72,14 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     default FileHasher fileHasher() {
       return FileHasher.DEFAULT_FILE_HASHER;
     }
+
+    /**
+     * The file tree visitor to use in order to find files. If null, the default file visitor will
+     * be used
+     */
+    default FileTreeVisitor fileTreeVisitor() {
+      return FileTreeVisitor.DEFAULT_FILE_TREE_VISITOR;
+    }
   }
 
   /** A file hasher that always increments its value. Used if we want to "turn off" hashing. */
@@ -94,11 +103,13 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
   private final double latency;
   private final int queueSize;
   private final FileHasher fileHasher;
+  private final FileTreeVisitor fileTreeVisitor;
   private final boolean fileLevelEvents;
 
   public MacOSXListeningWatchService(Config config) {
     this.latency = config.latency();
     this.queueSize = config.queueSize();
+    this.fileTreeVisitor = config.fileTreeVisitor();
     FileHasher hasher = config.fileHasher();
     this.fileLevelEvents = hasher == null || config.fileLevelEvents();
     this.fileHasher = hasher == null ? INCREMENTING_FILE_HASHER : hasher;
@@ -123,12 +134,13 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
       if (file.startsWith(watchedPath)) return watchKey;
     }
 
-    final SortedMap<Path, FileHash> hashCodeMap = PathUtils.createHashCodeMap(file, fileHasher);
+    final SortedMap<Path, FileHash> hashCodeMap =
+        PathUtils.createHashCodeMap(file, fileHasher, fileTreeVisitor);
     final Pointer[] values = {CFStringRef.toCFString(file.toString()).getPointer()};
     final CFArrayRef pathsToWatch =
         CarbonAPI.INSTANCE.CFArrayCreate(null, values, CFIndex.valueOf(1), null);
     final MacOSXListeningCallback callback =
-        new MacOSXListeningCallback(watchKey, fileHasher, hashCodeMap, file);
+        new MacOSXListeningCallback(watchKey, fileHasher, fileTreeVisitor, hashCodeMap, file);
     callbackList.add(callback);
     int flags = kFSEventStreamCreateFlagNoDefer;
     if (fileLevelEvents) {
@@ -214,6 +226,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     private final MacOSXWatchKey watchKey;
     private final SortedMap<Path, FileHash> hashCodeMap;
     private final FileHasher fileHasher;
+    private final FileTreeVisitor fileTreeVisitor;
     private final Path realPath;
     private final Path absPath;
     private final int realPathSize;
@@ -223,12 +236,14 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
     private MacOSXListeningCallback(
         MacOSXWatchKey watchKey,
         FileHasher fileHasher,
+        FileTreeVisitor fileTreeVisitor,
         SortedMap<Path, FileHash> hashCodeMap,
         Path absPath)
         throws IOException {
       this.watchKey = watchKey;
       this.hashCodeMap = hashCodeMap;
       this.fileHasher = fileHasher;
+      this.fileTreeVisitor = fileTreeVisitor;
       this.realPath = absPath.toRealPath();
       this.absPath = absPath;
       this.realPathSize = realPath.toString().length() + 1;
@@ -263,7 +278,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
                 : absPath;
         final Set<Path> filesOnDisk;
         try {
-          filesOnDisk = PathUtils.recursiveListFiles(path);
+          filesOnDisk = PathUtils.recursiveListFiles(fileTreeVisitor, path);
         } catch (IOException e) {
           throw new IllegalStateException("Could not recursively list files for " + path, e);
         }

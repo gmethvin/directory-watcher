@@ -21,6 +21,7 @@ import com.sun.nio.file.ExtendedWatchEventModifier;
 import io.methvin.watcher.DirectoryChangeEvent.EventType;
 import io.methvin.watcher.hashing.FileHash;
 import io.methvin.watcher.hashing.FileHasher;
+import io.methvin.watcher.visitor.FileTreeVisitor;
 import io.methvin.watchservice.MacOSXListeningWatchService;
 import io.methvin.watchservice.WatchablePath;
 import java.io.IOException;
@@ -53,6 +54,7 @@ public class DirectoryWatcher {
     private Logger logger = null;
     private FileHasher fileHasher = FileHasher.DEFAULT_FILE_HASHER;
     private WatchService watchService = null;
+    private FileTreeVisitor fileTreeVisitor = null;
 
     private Builder() {}
 
@@ -113,17 +115,27 @@ public class DirectoryWatcher {
       return this;
     }
 
+    /** Defines the file tree visitor to be used by the watcher. */
+    public Builder fileTreeVisitor(FileTreeVisitor fileTreeVisitor) {
+      this.fileTreeVisitor = fileTreeVisitor;
+      return this;
+    }
+
     public DirectoryWatcher build() throws IOException {
+      if (fileTreeVisitor == null) {
+        fileTreeVisitor = FileTreeVisitor.DEFAULT_FILE_TREE_VISITOR;
+      }
       if (watchService == null) {
-        osDefaultWatchService();
+        osDefaultWatchService(fileTreeVisitor);
       }
       if (logger == null) {
         staticLogger();
       }
-      return new DirectoryWatcher(paths, listener, watchService, fileHasher, logger);
+      return new DirectoryWatcher(
+          paths, listener, watchService, fileHasher, fileTreeVisitor, logger);
     }
 
-    private Builder osDefaultWatchService() throws IOException {
+    private Builder osDefaultWatchService(FileTreeVisitor fileTreeVisitor) throws IOException {
       boolean isMac = System.getProperty("os.name").toLowerCase().contains("mac");
       if (isMac) {
         return watchService(
@@ -138,6 +150,11 @@ public class DirectoryWatcher {
                      * MacOSXListeningWatchService and pass it to DirectoryWatcher.
                      */
                     return null;
+                  }
+
+                  @Override
+                  public FileTreeVisitor fileTreeVisitor() {
+                    return fileTreeVisitor;
                   }
                 }));
       } else {
@@ -163,10 +180,11 @@ public class DirectoryWatcher {
   private final SortedMap<Path, FileHash> pathHashes;
   private final Set<Path> directories;
   private final Map<WatchKey, Path> keyRoots;
+  private final FileHasher fileHasher;
+  private final FileTreeVisitor fileTreeVisitor;
 
   // set to null until we check if FILE_TREE is supported
   private Boolean fileTreeSupported = null;
-  private FileHasher fileHasher;
 
   private volatile boolean closed;
 
@@ -175,6 +193,7 @@ public class DirectoryWatcher {
       DirectoryChangeListener listener,
       WatchService watchService,
       FileHasher fileHasher,
+      FileTreeVisitor fileTreeVisitor,
       Logger logger)
       throws IOException {
     this.closed = false;
@@ -186,9 +205,10 @@ public class DirectoryWatcher {
     this.directories = Collections.newSetFromMap(new ConcurrentHashMap<Path, Boolean>());
     this.keyRoots = new ConcurrentHashMap<>();
     this.fileHasher = fileHasher;
+    this.fileTreeVisitor = fileTreeVisitor;
     this.logger = logger;
 
-    PathUtils.initWatcherState(paths, fileHasher, pathHashes, directories);
+    PathUtils.initWatcherState(paths, fileHasher, fileTreeVisitor, pathHashes, directories);
 
     for (Path path : paths) {
       registerAll(path, path);
@@ -279,7 +299,7 @@ public class DirectoryWatcher {
                * were created.
                */
               if (!isMac) {
-                PathUtils.recursiveVisitFiles(
+                fileTreeVisitor.recursiveVisitFiles(
                     childPath,
                     dir -> notifyCreateEvent(true, dir, count, rootPath),
                     file -> notifyCreateEvent(false, file, count, rootPath));
@@ -394,7 +414,7 @@ public class DirectoryWatcher {
       }
     } else {
       // Since FILE_TREE is unsupported, register root directory and sub-directories
-      PathUtils.recursiveVisitFiles(start, dir -> register(dir, false, context), file -> {});
+      fileTreeVisitor.recursiveVisitFiles(start, dir -> register(dir, false, context), file -> {});
     }
   }
 
