@@ -30,9 +30,13 @@ import scala.concurrent.ExecutionContext
 
 /** An implementation of the better-files `File.Monitor` interface using directory-watcher.
   *
-  * @param root the root directory to watch
-  * @param fileHasher a hasher implementation used to hash files to prevent duplicate events. `None` to disable hashing.
-  * @param logger the logger used by `DirectoryWatcher`. Useful to see debug output. Defaults to nop logger.
+  * @param root
+  *   the root directory to watch
+  * @param fileHasher
+  *   a hasher implementation used to hash files to prevent duplicate events. `None` to disable
+  *   hashing.
+  * @param logger
+  *   the logger used by `DirectoryWatcher`. Useful to see debug output. Defaults to nop logger.
   */
 abstract class RecursiveFileMonitor(
   val root: File,

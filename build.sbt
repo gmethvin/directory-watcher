@@ -17,7 +17,7 @@ inThisBuild(
         new URL("https://github.com/gmethvin")
       )
     ),
-    scalaVersion := "2.13.4",
+    scalaVersion := "2.13.8",
     scalafmtOnCompile := true
   )
 )
@@ -42,13 +42,13 @@ lazy val `directory-watcher` = (project in file("core"))
     autoScalaLibrary := false,
     crossPaths := false,
     libraryDependencies ++= Seq(
-      "net.java.dev.jna" % "jna" % "5.7.0",
-      "org.slf4j" % "slf4j-api" % "1.7.30",
+      "net.java.dev.jna" % "jna" % "5.12.1",
+      "org.slf4j" % "slf4j-api" % "1.7.36",
       "io.airlift" % "command" % "0.3" % Test,
-      "com.google.guava" % "guava" % "30.1-jre" % Test,
-      "org.codehaus.plexus" % "plexus-utils" % "3.3.0" % Test,
-      "commons-io" % "commons-io" % "2.8.0" % Test,
-      "org.awaitility" % "awaitility" % "4.0.2" % Test
+      "com.google.guava" % "guava" % "31.1-jre" % Test,
+      "org.codehaus.plexus" % "plexus-utils" % "3.4.2" % Test,
+      "commons-io" % "commons-io" % "2.11.0" % Test,
+      "org.awaitility" % "awaitility" % "4.2.0" % Test
     )
   )
 
@@ -60,7 +60,7 @@ lazy val `directory-watcher-better-files` = (project in file("better-files"))
     crossPaths := true,
     libraryDependencies ++= Seq(
       "com.github.pathikrit" %% "better-files" % "3.9.1",
-      "org.scalatest" %% "scalatest" % "3.2.2" % Test
+      "org.scalatest" %% "scalatest" % "3.2.13" % Test
     )
   )
   .dependsOn(`directory-watcher`)
@@ -71,7 +71,7 @@ lazy val root = (project in file("."))
     publish := {},
     publishLocal := {},
     publishArtifact := false,
-    skip in publish := true
+    publish / skip := true
   )
   .aggregate(`directory-watcher`, `directory-watcher-better-files`)
 
