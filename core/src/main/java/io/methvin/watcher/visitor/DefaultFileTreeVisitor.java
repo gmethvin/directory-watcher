@@ -35,7 +35,7 @@ public class DefaultFileTreeVisitor implements FileTreeVisitor {
 
           @Override
           public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-            onFailure(file, exc);
+            if (exc != null) onFailure(dir, exc);
             return FileVisitResult.CONTINUE;
           }
         };
