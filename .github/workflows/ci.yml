@@ -33,7 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        scala: [2.12.10, 2.13.8]
+        scala: [2.12.10, 2.13.10]
         java: [adopt@1.8, adopt@1.15]
         exclude:
           - scala: 2.12.10

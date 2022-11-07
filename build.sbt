@@ -31,7 +31,7 @@ def commonSettings =
     scalacOptions += "-target:jvm-1.8",
     libraryDependencies ++= Seq(
       "com.github.sbt" % "junit-interface" % "0.13.2" % Test,
-      "ch.qos.logback" % "logback-classic" % "1.4.4" % Test
+      "ch.qos.logback" % "logback-classic" % "1.3.4" % Test
     )
   )
 
