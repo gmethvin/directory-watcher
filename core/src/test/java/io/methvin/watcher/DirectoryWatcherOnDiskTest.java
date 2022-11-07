@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -133,7 +134,93 @@ public class DirectoryWatcherOnDiskTest {
     this.watcher.close();
   }
 
+  @Test
+  public void deleteCreatedFilesWithHashing() throws IOException, InterruptedException {
+    this.watcher =
+        DirectoryWatcher.builder()
+            .path(this.tmpDir)
+            .listener(this.recorder)
+            .fileHashing(true)
+            .build();
+    ensureStill();
+    this.watcher.watchAsync();
+    List<Path> structure = createStructure2(tmpDir);
+    ensureStill();
+    deleteAndVerifyEvents(structure);
+    this.watcher.close();
+  }
+
+  @Test
+  public void deleteCreatedFilesNoHashing() throws IOException, InterruptedException {
+    this.watcher =
+        DirectoryWatcher.builder()
+            .path(this.tmpDir)
+            .listener(this.recorder)
+            .fileHashing(false)
+            .build();
+    this.watcher.watchAsync();
+    List<Path> structure = createStructure2(tmpDir);
+    ensureStill();
+    deleteAndVerifyEvents(structure);
+    this.watcher.close();
+  }
+
+  @Test
+  public void deleteAlreadyExistingFilesWithHashing() throws IOException, InterruptedException {
+    this.watcher =
+        DirectoryWatcher.builder()
+            .path(this.tmpDir)
+            .listener(this.recorder)
+            .fileHashing(true)
+            .build();
+    ensureStill();
+    List<Path> structure = createStructure2(tmpDir);
+    ensureStill();
+    this.watcher.watchAsync();
+    deleteAndVerifyEvents(structure);
+    this.watcher.close();
+  }
+
+  @Test
+  public void deleteAlreadyExistingFilesNoHashing() throws IOException, InterruptedException {
+    this.watcher =
+        DirectoryWatcher.builder()
+            .path(this.tmpDir)
+            .listener(this.recorder)
+            .fileHashing(false)
+            .build();
+    ensureStill();
+    List<Path> structure = createStructure2(tmpDir);
+    this.watcher.watchAsync();
+    deleteAndVerifyEvents(structure);
+    this.watcher.close();
+  }
+
+  private void deleteAndVerifyEvents(List<Path> structure) throws IOException {
+    // ignore initial root directory
+    List<Path> files = structure.subList(1, structure.size());
+    // reverse structure to delete children before parents
+    Collections.reverse(files);
+    for (Path file : files) {
+      Files.deleteIfExists(file);
+    }
+    await()
+        .atMost(5, TimeUnit.SECONDS)
+        .untilAsserted(
+            () -> {
+              for (Path file : files) {
+                assertTrue(
+                    "Delete event for the file was notified",
+                    existsMatch(
+                        e ->
+                            e.eventType() == DirectoryChangeEvent.EventType.DELETE
+                                && e.path().getFileName().equals(file.getFileName())));
+              }
+            });
+  }
+
   private void copyAndVerifyEvents(List<Path> structure) throws IOException {
+
     try {
       FileUtils.copyDirectoryToDirectory(structure.get(0).toFile(), tmpDir.toFile());
       await()
