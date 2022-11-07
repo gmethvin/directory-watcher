@@ -17,7 +17,7 @@ inThisBuild(
         new URL("https://github.com/gmethvin")
       )
     ),
-    scalaVersion := "2.13.8",
+    scalaVersion := "2.13.10",
     scalafmtOnCompile := true
   )
 )
@@ -30,8 +30,8 @@ def commonSettings =
     compile / javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint"),
     scalacOptions += "-target:jvm-1.8",
     libraryDependencies ++= Seq(
-      "com.novocode" % "junit-interface" % "0.11" % Test,
-      "ch.qos.logback" % "logback-classic" % "1.2.3" % Test
+      "com.github.sbt" % "junit-interface" % "0.13.2" % Test,
+      "ch.qos.logback" % "logback-classic" % "1.4.4" % Test
     )
   )
 
@@ -46,7 +46,7 @@ lazy val `directory-watcher` = (project in file("core"))
       "org.slf4j" % "slf4j-api" % "1.7.36",
       "io.airlift" % "command" % "0.3" % Test,
       "com.google.guava" % "guava" % "31.1-jre" % Test,
-      "org.codehaus.plexus" % "plexus-utils" % "3.4.2" % Test,
+      "org.codehaus.plexus" % "plexus-utils" % "3.5.0" % Test,
       "commons-io" % "commons-io" % "2.11.0" % Test,
       "org.awaitility" % "awaitility" % "4.2.0" % Test
     )
