@@ -174,19 +174,22 @@ public class DirectoryWatcher {
 
   private final Logger logger;
   private final WatchService watchService;
-  private final Map<Path, Path> registeredPathToRootPath;
+  private final List<Path> paths;
   private final boolean isMac;
   private final DirectoryChangeListener listener;
-  private final SortedMap<Path, FileHash> pathHashes;
-  private final Set<Path> directories;
-  private final Map<WatchKey, Path> keyRoots;
   private final FileHasher fileHasher;
   private final FileTreeVisitor fileTreeVisitor;
 
+  private final Map<Path, Path> registeredPathToRootPath = new HashMap<>();;
+  private final SortedMap<Path, FileHash> pathHashes = new ConcurrentSkipListMap<>();
+  private final Set<Path> directories =
+      Collections.newSetFromMap(new ConcurrentHashMap<Path, Boolean>());
+  private final Map<WatchKey, Path> keyRoots = new ConcurrentHashMap<>();
+
+  private volatile boolean closed = false;
+
   // set to null until we check if FILE_TREE is supported
   private Boolean fileTreeSupported = null;
-
-  private volatile boolean closed;
 
   public DirectoryWatcher(
       List<Path> paths,
@@ -194,25 +197,14 @@ public class DirectoryWatcher {
       WatchService watchService,
       FileHasher fileHasher,
       FileTreeVisitor fileTreeVisitor,
-      Logger logger)
-      throws IOException {
-    this.closed = false;
-    this.registeredPathToRootPath = new HashMap<>();
+      Logger logger) {
+    this.paths = paths;
     this.listener = listener;
     this.watchService = watchService;
     this.isMac = watchService instanceof MacOSXListeningWatchService;
-    this.pathHashes = new ConcurrentSkipListMap<>();
-    this.directories = Collections.newSetFromMap(new ConcurrentHashMap<Path, Boolean>());
-    this.keyRoots = new ConcurrentHashMap<>();
     this.fileHasher = fileHasher;
     this.fileTreeVisitor = fileTreeVisitor;
     this.logger = logger;
-
-    PathUtils.initWatcherState(paths, fileHasher, fileTreeVisitor, pathHashes, directories);
-
-    for (Path path : paths) {
-      registerAll(path, path);
-    }
   }
 
   /**
@@ -223,30 +215,57 @@ public class DirectoryWatcher {
   }
 
   /**
-   * Asynchronously watch the directories.
+   * Start watching for changes asynchronously.
+   *
+   * <p>The future completes when the listener stops listening or the watcher is closed.
+   *
+   * <p>This method will block until the watcher is initialized and successfully watching.
    *
    * @param executor the executor to use to watch asynchronously
    */
   public CompletableFuture<Void> watchAsync(Executor executor) {
-    return CompletableFuture.supplyAsync(
-        () -> {
-          watch();
-          return null;
-        },
-        executor);
+    try {
+      registerPaths();
+      return CompletableFuture.supplyAsync(
+          () -> {
+            runEventLoop();
+            return null;
+          },
+          executor);
+    } catch (Throwable t) {
+      CompletableFuture<Void> f = new CompletableFuture<>();
+      f.completeExceptionally(t);
+      return f;
+    }
+  }
+
+  /**
+   * Watch for changes; block until the listener stops listening or the watcher is closed.
+   *
+   * @throws IllegalStateException if the directory watcher is closed when watch() is called.
+   */
+  public void watch() {
+    registerPaths();
+    runEventLoop();
   }
 
   public Map<Path, FileHash> pathHashes() {
     return Collections.unmodifiableMap(pathHashes);
   }
 
-  /**
-   * Watch the directories. Block until either the listener stops watching or the DirectoryWatcher
-   * is closed.
-   *
-   * @throws IllegalStateException if the directory watcher is closed when watch() is called.
-   */
-  public void watch() {
+  private void registerPaths() {
+    try {
+      PathUtils.initWatcherState(paths, fileHasher, fileTreeVisitor, pathHashes, directories);
+
+      for (Path path : paths) {
+        registerAll(path, path);
+      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  private void runEventLoop() {
     if (closed) {
       throw new IllegalStateException("watcher already closed");
     }
