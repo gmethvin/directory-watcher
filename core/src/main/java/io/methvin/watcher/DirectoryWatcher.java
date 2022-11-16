@@ -38,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -198,7 +199,7 @@ public class DirectoryWatcher {
       FileHasher fileHasher,
       FileTreeVisitor fileTreeVisitor,
       Logger logger) {
-    this.paths = paths;
+    this.paths = paths.stream().map(p -> p.toAbsolutePath()).collect(Collectors.toList());
     this.listener = listener;
     this.watchService = watchService;
     this.isMac = watchService instanceof MacOSXListeningWatchService;
