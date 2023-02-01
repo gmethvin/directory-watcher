@@ -364,11 +364,10 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
 
     private List<Path> findDeletedFiles(Path path, Set<Path> filesOnDisk) {
       List<Path> deletedFileList = new ArrayList<Path>();
-      Set<Path> subtreePaths = PathUtils.subMap(hashCodeMap, path).keySet();
-      for (Path file : subtreePaths) {
+      for (Path file : PathUtils.subtreePaths(hashCodeMap, path)) {
         if (file.startsWith(path) && !filesOnDisk.contains(file)) {
           deletedFileList.add(file);
-          subtreePaths.remove(file);
+          hashCodeMap.remove(file);
         }
       }
       return deletedFileList;

@@ -39,8 +39,16 @@ public class PathUtils {
     }
   }
 
-  public static <T> SortedMap<Path, T> subMap(SortedMap<Path, T> pathMap, Path treeRoot) {
-    return pathMap.subMap(treeRoot, Paths.get(treeRoot.toString(), "" + Character.MAX_VALUE));
+  public static <T> Iterable<Path> subtreePaths(SortedMap<Path, T> pathMap, Path treeRoot) {
+    List<Path> paths = new ArrayList<>();
+    for (Path path : pathMap.tailMap(treeRoot).keySet()) {
+      if (path.startsWith(treeRoot)) {
+        paths.add(path);
+      } else {
+        break;
+      }
+    }
+    return paths;
   }
 
   public static SortedMap<Path, FileHash> createHashCodeMap(

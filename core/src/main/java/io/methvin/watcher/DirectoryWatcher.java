@@ -359,13 +359,11 @@ public class DirectoryWatcher {
               onEvent(EventType.DELETE, isDirectory, childPath, count, rootPath);
             } else {
               // hashing is enabled, so delete the hashes
-              Set<Path> subtreePaths = PathUtils.subMap(pathHashes, childPath).keySet();
-              for (Path path : subtreePaths) {
+              for (Path path : PathUtils.subtreePaths(pathHashes, childPath)) {
                 boolean isDirectory = directories.remove(path);
+                pathHashes.remove(path);
                 onEvent(EventType.DELETE, isDirectory, path, count, rootPath);
               }
-              // this will remove from the original map
-              subtreePaths.clear();
             }
           }
         } catch (Exception e) {
