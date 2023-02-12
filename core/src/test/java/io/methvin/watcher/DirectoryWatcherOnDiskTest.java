@@ -549,7 +549,7 @@ public class DirectoryWatcherOnDiskTest {
     List<Path> paths2 = createStructure2(p2);
     List<Path> paths3 = createStructure2(p3);
 
-    waitRecorderSize(3, 15);
+    waitRecorderSizeAtLeast(3, 15);
 
     checkEventsMatchContext(p1, p2, p3);
     this.recorder.events.clear();

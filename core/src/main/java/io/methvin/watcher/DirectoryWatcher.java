@@ -254,6 +254,26 @@ public class DirectoryWatcher {
     return Collections.unmodifiableMap(pathHashes);
   }
 
+  public DirectoryChangeListener getListener() {
+    return listener;
+  }
+
+  public void close() throws IOException {
+    watchService.close();
+    closed = true;
+  }
+
+  public boolean isClosed() {
+    return closed;
+  }
+
+  private boolean isFileTreeSupported() {
+    if (fileTreeSupported == null) {
+      throw new IllegalStateException("fileTreeSupported not initialized");
+    }
+    return fileTreeSupported;
+  }
+
   private void registerPaths() {
     try {
       PathUtils.initWatcherState(paths, fileHasher, fileTreeVisitor, pathHashes, directories);
@@ -310,7 +330,7 @@ public class DirectoryWatcher {
           } else if (kind == ENTRY_CREATE) {
             boolean isDirectory = Files.isDirectory(childPath, NOFOLLOW_LINKS);
             if (isDirectory) {
-              if (!Boolean.TRUE.equals(fileTreeSupported)) {
+              if (!isFileTreeSupported()) {
                 registerAll(childPath, rootPath);
               }
               /*
@@ -323,9 +343,12 @@ public class DirectoryWatcher {
                     childPath,
                     dir -> notifyCreateEvent(true, dir, count, rootPath),
                     file -> notifyCreateEvent(false, file, count, rootPath));
+              } else {
+                notifyCreateEvent(true, childPath, count, rootPath);
               }
+            } else {
+              notifyCreateEvent(false, childPath, count, rootPath);
             }
-            notifyCreateEvent(isDirectory, childPath, count, rootPath);
           } else if (kind == ENTRY_MODIFY) {
             boolean isDirectory = directories.contains(childPath);
 
@@ -403,19 +426,6 @@ public class DirectoryWatcher {
         new DirectoryChangeEvent(eventType, isDirectory, childPath, hash, count, rootPath));
   }
 
-  public DirectoryChangeListener getListener() {
-    return listener;
-  }
-
-  public void close() throws IOException {
-    watchService.close();
-    closed = true;
-  }
-
-  public boolean isClosed() {
-    return closed;
-  }
-
   private void registerAll(final Path start, final Path context) throws IOException {
     if (!Boolean.FALSE.equals(fileTreeSupported)) {
       // Try using FILE_TREE modifier since we aren't certain that it's unsupported
@@ -467,10 +477,21 @@ public class DirectoryWatcher {
           // Just warn here and continue to notify the event.
           logger.debug("Failed to hash created file [{}]. It may be locked.", path);
         }
-      } else if (pathHashes.put(path, newHash) != null) {
-        // Skip notifying the event if we've already seen the path.
-        logger.debug("Skipping create event for path [{}]. Path already hashed.", path);
-        return;
+      } else {
+        FileHash oldHash = pathHashes.put(path, newHash);
+        if (oldHash != null) {
+          if (oldHash == newHash) {
+            // Creates might occur just before we traverse and notify for files in a new directory.
+            // We generally want to skip the duplicate if the hash has not changed.
+            logger.debug("Skipping duplicate create event for file [{}].", path);
+            return;
+          } else {
+            // This might happen if events were discarded and perhaps we missed a DELETE event.
+            logger.debug("Sending MODIFY instead of CREATE for existing hashed file [{}].", path);
+            onEvent(EventType.MODIFY, isDirectory, path, count, rootPath);
+            return;
+          }
+        }
       }
     }
     if (isDirectory) {
