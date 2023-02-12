@@ -104,7 +104,7 @@ In the above example we use the last modified time hasher. This hasher is only s
 
 ## better-files integration (Scala)
 
-While the core `directory-watcher` library is Java only, we also provide `better-files` integration, which is the recommended API for Scala 2.12 users. To add the library:
+While the core `directory-watcher` library is Java only, we also provide `better-files` integration, which is the recommended API for Scala users. To add the library:
 
 ```scala
 libraryDependencies += "io.methvin" %% "directory-watcher-better-files" % directoryWatcherVersion

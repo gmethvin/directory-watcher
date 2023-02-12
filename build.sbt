@@ -17,7 +17,7 @@ inThisBuild(
         new URL("https://github.com/gmethvin")
       )
     ),
-    scalaVersion := "2.13.10",
+    scalaVersion := "3.2.2",
     scalafmtOnCompile := true
   )
 )
@@ -56,11 +56,11 @@ lazy val `directory-watcher` = (project in file("core"))
 lazy val `directory-watcher-better-files` = (project in file("better-files"))
   .settings(commonSettings)
   .settings(
-    crossScalaVersions := Seq(scalaVersion.value, "2.12.10"),
+    crossScalaVersions := Seq(scalaVersion.value, "2.13.10", "2.12.10"),
     crossPaths := true,
     libraryDependencies ++= Seq(
-      "com.github.pathikrit" %% "better-files" % "3.9.1",
-      "org.scalatest" %% "scalatest" % "3.2.13" % Test
+      "com.github.pathikrit" %% "better-files" % "3.9.2",
+      "org.scalatest" %% "scalatest" % "3.2.15" % Test
     )
   )
   .dependsOn(`directory-watcher`)
