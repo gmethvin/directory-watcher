@@ -1,5 +1,5 @@
-addSbtPlugin("com.github.sbt" % "sbt-release" % "1.1.0")
-addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.9.13")
+addSbtPlugin("com.github.sbt" % "sbt-release" % "1.4.0")
+addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.12.2")
 addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.1.2")
 addSbtPlugin("com.lightbend.sbt" % "sbt-java-formatter" % "0.7.0")
-addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.6")
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.4")

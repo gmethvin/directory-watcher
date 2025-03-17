@@ -19,12 +19,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup JDK
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           java-version: 21
           distribution: zulu
           cache: sbt
+
+      - name: Set up sbt
+        uses: sbt/setup-sbt@v1
+        with:
+          sbt-runner-version: 1.10.10
 
       - name: Check formatting
         run: sbt javafmtCheckAll scalafmtCheckAll
@@ -56,18 +61,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup JDK
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           java-version: ${{ matrix.java }}
           distribution: zulu
           cache: sbt
 
-      - name: Setup sbt
-        if: startsWith(runner.os, 'macOS')
-        run: |
-          brew install sbt
-          sbt sbtVersion
+      - name: Set up sbt
+        uses: sbt/setup-sbt@v1
+        with:
+          sbt-runner-version: 1.10.10
 
       - name: Build project
         run: sbt ++${{ matrix.scala }} test
