@@ -1,8 +1,23 @@
 inThisBuild(
   Seq(
     organization := "io.methvin",
-    licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html")),
+    scalaVersion := "2.13.10",
+    crossScalaVersions := Seq("2.12.15", "2.13.10", "3.1.1"),
+    scalacOptions ++= Seq(
+      "-encoding",
+      "UTF-8",
+      "-deprecation",
+      "-unchecked",
+      "-feature",
+      "-Xlint"
+    ),
+    // Central Portal publishing settings
+    publishMavenStyle := true,
+    Test / publishArtifact := false,
+    pomIncludeRepository := { _ => false },
+    credentials += Credentials(Path.userHome / ".sbt" / "sonatype_credentials"),
     homepage := Some(url("https://github.com/gmethvin/directory-watcher")),
+    licenses := Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
     scmInfo := Some(
       ScmInfo(
         url("https://github.com/gmethvin/directory-watcher"),
@@ -11,21 +26,25 @@ inThisBuild(
     ),
     developers := List(
       Developer(
-        "gmethvin",
-        "Greg Methvin",
-        "greg@methvin.net",
-        new URL("https://github.com/gmethvin")
+        id = "gmethvin",
+        name = "Greg Methvin",
+        email = "greg@methvin.net",
+        url = url("https://github.com/gmethvin")
       )
-    ),
-    scalaVersion := "3.3.3",
-    scalafmtOnCompile := true
+    )
   )
 )
+
+// Set publishTo for Central Portal
+ThisBuild / publishTo := {
+  val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
+  if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
+  else localStaging.value
+}
 
 def commonSettings =
   Seq(
     publishMavenStyle := true,
-    publishTo := sonatypePublishToBundle.value,
     Test / fork := true,
     compile / javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint"),
     scalacOptions ++= Seq("-release", "8"),
@@ -75,6 +94,7 @@ lazy val root = (project in file("."))
   )
   .aggregate(`directory-watcher`, `directory-watcher-better-files`)
 
+// sbt-release configuration for Central Portal
 import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
 
 releaseCrossBuild := true
@@ -86,8 +106,9 @@ releaseProcess := Seq[ReleaseStep](
   setReleaseVersion,
   commitReleaseVersion,
   tagRelease,
-  releaseStepCommandAndRemaining("+publishSigned"),
-  releaseStepCommand("sonatypeBundleRelease"),
+  releaseStepCommandAndRemaining("+publishSigned"), // This creates the artifacts locally
+  releaseStepCommand("sonaUpload"), // Upload to Central Portal
+  releaseStepCommand("sonaRelease"), // Release on Central Portal
   setNextVersion,
   commitNextVersion,
   pushChanges
